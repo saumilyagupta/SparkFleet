@@ -1,0 +1,17 @@
+[Unit]
+Description=Apache Spark standalone master (managed by clusterctl)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{user}}
+Environment=SPARK_HOME={{spark_home}}
+Environment=SPARK_NO_DAEMONIZE=true
+ExecStart={{spark_home}}/bin/spark-class org.apache.spark.deploy.master.Master --host {{host_ip}} --port {{master_port}} --webui-port {{master_ui_port}}
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
