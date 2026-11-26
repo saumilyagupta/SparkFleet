@@ -27,6 +27,7 @@ def main(argv: list[str]) -> int:
         print("usage: local_count.py FILE", file=sys.stderr)
         return 2
     out = sys.stdout
+    out.reconfigure(newline="\n")  # byte-identical to the cluster output, even on Windows
     for word, count in count_file(Path(argv[0])):
         out.write(f"{word}\t{count}\n")
     return 0
