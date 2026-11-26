@@ -10,6 +10,8 @@ import base64
 import hashlib
 import json
 import os
+import threading
+import uuid
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 CONTROL_COMMENT = "clusterctl-control"
+# Hosts are bootstrapped in parallel threads; serialize registry read-modify-write.
+_REGISTRY_LOCK = threading.RLock()
 
 
 class KeyError_(Exception):
@@ -110,7 +114,7 @@ class KeyRegistry:
     def _write(self, records: tuple[KeyRecord, ...]) -> None:
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
         doc = {"updated_at": now_iso(), "keys": [r.to_dict() for r in records]}
-        tmp = self.registry_path.with_suffix(".tmp")
+        tmp = self.registry_path.with_name(f".registry-{uuid.uuid4().hex}.tmp")
         tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
         tmp.replace(self.registry_path)
 
@@ -128,6 +132,10 @@ class KeyRegistry:
 
     def register(self, *, public_key: str, kind: str, owner: str, user: str, ip: str) -> KeyRecord:
         """Add a key if new; returns the (possibly existing) record."""
+        with _REGISTRY_LOCK:
+            return self._register(public_key=public_key, kind=kind, owner=owner, user=user, ip=ip)
+
+    def _register(self, *, public_key: str, kind: str, owner: str, user: str, ip: str) -> KeyRecord:
         fp = fingerprint(public_key)
         existing = self.find(fp)
         if existing:
@@ -141,6 +149,10 @@ class KeyRegistry:
         return record
 
     def mark_installed(self, fp: str, host_name: str) -> None:
+        with _REGISTRY_LOCK:
+            self._mark_installed(fp, host_name)
+
+    def _mark_installed(self, fp: str, host_name: str) -> None:
         records = self.records()
         target = next((r for r in records if r.fingerprint == fp), None)
         if target is None or host_name in target.installed_on:
@@ -150,6 +162,10 @@ class KeyRegistry:
         self.audit("key_installed", fingerprint=fp, host=host_name)
 
     def mark_revoked(self, fp: str, removed_from: list[str]) -> KeyRecord:
+        with _REGISTRY_LOCK:
+            return self._mark_revoked(fp, removed_from)
+
+    def _mark_revoked(self, fp: str, removed_from: list[str]) -> KeyRecord:
         records = self.records()
         target = next((r for r in records if r.fingerprint == fp), None)
         if target is None:
