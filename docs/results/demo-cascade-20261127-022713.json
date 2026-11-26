@@ -1,0 +1,234 @@
+{
+  "scenario": "cascade",
+  "stamp": "20261127-022713",
+  "input": "corpus.txt",
+  "mode": "cascade",
+  "victim": {
+    "name": "system-02",
+    "ip": "172.22.68.216"
+  },
+  "affected": [
+    {
+      "name": "system-02",
+      "ip": "172.22.68.216"
+    },
+    {
+      "name": "system-03",
+      "ip": "172.22.68.217"
+    }
+  ],
+  "partitions": 288,
+  "delay_ms": 8000,
+  "reduce_delay_ms": 0,
+  "identical": true,
+  "baseline": {
+    "file": "single-machine reference",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "recovered": {
+    "file": "cascade-20261127-022713.tsv (on master)",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "timeline": [
+    {
+      "t": 0.0,
+      "event": "scenario 'cascade': 3 workers / 72 cores, input corpus.txt, 288 partitions"
+    },
+    {
+      "t": 1.1,
+      "event": "job started (pid 47770)"
+    },
+    {
+      "t": 5.7,
+      "event": "stopped spark-worker on system-02 (first failure)"
+    },
+    {
+      "t": 28.8,
+      "event": "stopped spark-worker on system-03 (second failure, 20s later)"
+    },
+    {
+      "t": 111.3,
+      "event": "job finished despite the fault"
+    },
+    {
+      "t": 111.9,
+      "event": "restarted spark-worker on system-02"
+    },
+    {
+      "t": 112.4,
+      "event": "restarted spark-worker on system-03"
+    },
+    {
+      "t": 116.3,
+      "event": "all workers ALIVE again"
+    },
+    {
+      "t": 116.3,
+      "event": "result identical to single-machine count: True"
+    }
+  ],
+  "lost_executors": [
+    {
+      "id": "1",
+      "ip": "172.22.68.216",
+      "reason": "Worker shutting down"
+    },
+    {
+      "id": "2",
+      "ip": "172.22.68.217",
+      "reason": "Command exited with code 143"
+    }
+  ],
+  "lost_tasks": 48,
+  "retried_tasks": 96,
+  "executors": [
+    {
+      "id": "app-20261127022715-0042/0",
+      "ip": "172.22.68.218",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/1",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/2",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/3",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/4",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/5",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/6",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/7",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/8",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022715-0042/9",
+      "ip": "172.22.68.217",
+      "cores": 24
+    }
+  ],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 99.2
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 1.798
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 1.457
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 1.573
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 1.375
+    }
+  ],
+  "summary": {
+    "app_id": "app-20261127022715-0042",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus.txt",
+    "partitions": 288,
+    "executors": 1,
+    "total_words": 25327776,
+    "distinct_words": 99,
+    "elapsed_s": 105.8,
+    "output": "/opt/spark-data/output/cascade-20261127-022713.tsv"
+  },
+  "fetch_failed": 0,
+  "lost_map_outputs": 0,
+  "resubmitted": [
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask",
+    "Resubmitted ShuffleMapTask"
+  ],
+  "resubmit_count": 48,
+  "speculatable": 0,
+  "speculative_wins": 0,
+  "key_log_lines": [
+    "26/11/27 02:27:18 INFO StandaloneSchedulerBackend: Executor app-20261127022715-0042/5 removed: worker lost: 172.22.68.216:36201 got disassociated",
+    "26/11/27 02:27:18 INFO DAGScheduler: Executor lost: 1 (epoch 0)",
+    "26/11/27 02:27:18 ERROR TaskSchedulerImpl: Lost executor 1 on 172.22.68.216: Worker shutting down",
+    "26/11/27 02:27:18 WARN TaskSetManager: Lost task 17.0 in stage 0.0 (TID 17) (172.22.68.216 executor 1): ExecutorLostFailure (executor 1 exited caused by one of the running tasks) Reason: Worker shutting down",
+    "26/11/27 02:27:18 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261127022715-0042/5 is now LOST (worker lost: 172.22.68.216:36201 got disassociated)",
+    "26/11/27 02:27:18 WARN TaskSetManager: Lost task 23.0 in stage 0.0 (TID 23) (172.22.68.216 executor 1): ExecutorLostFailure (executor 1 exited caused by one of the running tasks) Reason: Worker shutting down",
+    "26/11/27 02:27:26 INFO TaskSetManager: Starting task 0.1 in stage 0.0 (TID 72) (172.22.68.218, executor 0, partition 0, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:27:26 INFO TaskSetManager: Starting task 6.1 in stage 0.0 (TID 73) (172.22.68.218, executor 0, partition 6, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:27:26 INFO TaskSetManager: Starting task 15.1 in stage 0.0 (TID 74) (172.22.68.218, executor 0, partition 15, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:27:34 INFO TaskSetManager: Finished task 1.1 in stage 0.0 (TID 81) in 8175 ms on 172.22.68.218 (executor 0) (50/288)",
+    "26/11/27 02:27:34 INFO TaskSetManager: Finished task 18.1 in stage 0.0 (TID 79) in 8177 ms on 172.22.68.218 (executor 0) (49/288)",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 74), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Executor lost: 2 (epoch 2)",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 77), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 59), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 92), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 62), so marking it as still running.",
+    "26/11/27 02:27:41 ERROR TaskSchedulerImpl: Lost executor 2 on 172.22.68.217: Command exited with code 143",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 53), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 68), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 89), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 50), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 95), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 86), so marking it as still running.",
+    "26/11/27 02:27:41 INFO DAGScheduler: Resubmitted ShuffleMapTask(0, 80), so marking it as still running.",
+    "26/11/27 02:28:55 INFO DAGScheduler: ShuffleMapStage 0 (reduceByKey at /opt/spark-data/jobs/wordcount.py:66) finished in 99.200 s",
+    "26/11/27 02:28:57 INFO DAGScheduler: Job 0 finished: sortBy at /opt/spark-data/jobs/wordcount.py:71, took 101.157125 s",
+    "WORDCOUNT_DONE app_id=app-20261127022715-0042 driver=cselab2pc36",
+    "total_words=25327776 distinct_words=99 elapsed_s=105.8"
+  ],
+  "report_file": "demo-cascade-20261127-022713.md",
+  "log_file": "demo-cascade-20261127-022713.log"
+}

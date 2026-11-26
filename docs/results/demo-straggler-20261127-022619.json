@@ -1,0 +1,149 @@
+{
+  "scenario": "straggler",
+  "stamp": "20261127-022619",
+  "input": "corpus-2000mb.txt",
+  "mode": "straggler",
+  "victim": {
+    "name": "system-02",
+    "ip": "172.22.68.216"
+  },
+  "affected": [
+    {
+      "name": "system-02",
+      "ip": "172.22.68.216"
+    }
+  ],
+  "partitions": 432,
+  "delay_ms": 0,
+  "reduce_delay_ms": 0,
+  "identical": true,
+  "baseline": {
+    "file": "single-machine reference",
+    "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+  },
+  "recovered": {
+    "file": "straggler-20261127-022619.tsv (on master)",
+    "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+  },
+  "timeline": [
+    {
+      "t": 0.0,
+      "event": "scenario 'straggler': 3 workers / 72 cores, input corpus-2000mb.txt, 432 partitions"
+    },
+    {
+      "t": 0.5,
+      "event": "job started (pid 47199)"
+    },
+    {
+      "t": 3.6,
+      "event": "system-02 throttled to 1 CPU core (cgroup CPUQuota=100%): it is now a straggler"
+    },
+    {
+      "t": 36.9,
+      "event": "job finished despite the fault"
+    },
+    {
+      "t": 37.5,
+      "event": "CPU throttle removed from system-02"
+    },
+    {
+      "t": 38.1,
+      "event": "all workers ALIVE again"
+    },
+    {
+      "t": 38.1,
+      "event": "result identical to single-machine count: True"
+    }
+  ],
+  "lost_executors": [],
+  "lost_tasks": 49,
+  "retried_tasks": 73,
+  "executors": [
+    {
+      "id": "app-20261127022621-0041/0",
+      "ip": "172.22.68.218",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022621-0041/1",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022621-0041/2",
+      "ip": "172.22.68.217",
+      "cores": 24
+    }
+  ],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 21.302
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 2.14
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 1.708
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 1.759
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 1.536
+    }
+  ],
+  "summary": {
+    "app_id": "app-20261127022621-0041",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus-2000mb.txt",
+    "partitions": 432,
+    "executors": 3,
+    "total_words": 506496816,
+    "distinct_words": 99,
+    "elapsed_s": 28.9,
+    "output": "/opt/spark-data/output/straggler-20261127-022619.tsv"
+  },
+  "fetch_failed": 0,
+  "lost_map_outputs": 0,
+  "resubmitted": [],
+  "resubmit_count": 0,
+  "speculatable": 97,
+  "speculative_wins": 64,
+  "key_log_lines": [
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 34 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(11 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 25 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(2 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 31 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(1 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 46 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(8 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 248 in stage 0.0 (on 172.22.68.217) as speculatable because it ran more than 2096 ms(7 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 44 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(6 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 27 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(3 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 36 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(12 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 252 in stage 0.0 (on 172.22.68.217) as speculatable because it ran more than 2096 ms(4 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 40 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(10 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 38 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(9 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:35 INFO TaskSetManager: Marking task 42 in stage 0.0 (on 172.22.68.216) as speculatable because it ran more than 2096 ms(5 speculatable tasks in this taskset now)",
+    "26/11/27 02:26:40 INFO TaskSetManager: Starting task 355.1 in stage 0.0 (TID 433) (172.22.68.218, executor 0, partition 355, PROCESS_LOCAL, 9052 bytes)",
+    "26/11/27 02:26:40 INFO TaskSetManager: Starting task 29.1 in stage 0.0 (TID 432) (172.22.68.217, executor 2, partition 29, PROCESS_LOCAL, 9052 bytes)",
+    "26/11/27 02:26:40 INFO TaskSetManager: Starting task 353.1 in stage 0.0 (TID 434) (172.22.68.218, executor 0, partition 353, PROCESS_LOCAL, 9052 bytes)",
+    "26/11/27 02:26:41 WARN TaskSetManager: Lost task 353.1 in stage 0.0 (TID 434) (172.22.68.218 executor 0): TaskKilled (another attempt succeeded)",
+    "26/11/27 02:26:41 WARN TaskSetManager: Lost task 356.1 in stage 0.0 (TID 438) (172.22.68.218 executor 0): TaskKilled (another attempt succeeded)",
+    "26/11/27 02:26:41 INFO TaskSetManager: Finished task 385.1 in stage 0.0 (TID 441) in 954 ms on 172.22.68.218 (executor 0) (400/432)",
+    "26/11/27 02:26:41 INFO TaskSetManager: Finished task 380.1 in stage 0.0 (TID 442) in 988 ms on 172.22.68.218 (executor 0) (401/432)",
+    "26/11/27 02:26:43 INFO DAGScheduler: ShuffleMapStage 0 (reduceByKey at /opt/spark-data/jobs/wordcount.py:66) finished in 21.302 s",
+    "26/11/27 02:26:45 INFO DAGScheduler: Job 0 finished: sortBy at /opt/spark-data/jobs/wordcount.py:71, took 23.612932 s",
+    "WORDCOUNT_DONE app_id=app-20261127022621-0041 driver=cselab2pc36",
+    "total_words=506496816 distinct_words=99 elapsed_s=28.9"
+  ],
+  "report_file": "demo-straggler-20261127-022619.md",
+  "log_file": "demo-straggler-20261127-022619.log"
+}
