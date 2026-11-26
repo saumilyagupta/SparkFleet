@@ -34,7 +34,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--output", required=True, help="TSV written on the driver node")
     p.add_argument("--partitions", type=int, default=0, help="min input partitions (0 = Spark default)")
     p.add_argument("--top", type=int, default=20, help="print the N most frequent words")
-    p.add_argument("--delay-ms", type=int, default=0, help="sleep per partition (failure demo only)")
+    p.add_argument("--delay-ms", type=int, default=0, help="sleep per input partition (failure demo only)")
+    p.add_argument("--reduce-delay-ms", type=int, default=0,
+                   help="sleep per partition AFTER the shuffle (shuffle-failure demo only)")
     p.add_argument("--app-name", default="WordCount")
     return p.parse_args(argv)
 
@@ -62,8 +64,11 @@ def main(argv: list[str]) -> int:
         lines.flatMap(tokenize)
         .map(lambda word: (word, 1))
         .reduceByKey(lambda a, b: a + b)
-        .sortBy(lambda kv: (-kv[1], kv[0]))
     )
+    if args.reduce_delay_ms > 0:
+        # Slow the reduce side so a worker can be killed while shuffle output is being read.
+        counts = counts.mapPartitions(_slow_partition(args.reduce_delay_ms))
+    counts = counts.sortBy(lambda kv: (-kv[1], kv[0]))
     results = counts.collect()
     elapsed = time.time() - started
 

@@ -263,8 +263,16 @@ def cmd_run(paths: ProjectPaths, args: argparse.Namespace) -> int:
 
 def cmd_demo(paths: ProjectPaths, args: argparse.Namespace) -> int:
     ctx = make_context(paths, with_vault=True)
-    workload.demo_failure(ctx, args.input, mode=args.mode, victim_name=args.victim,
-                          waves=args.waves, delay_ms=args.delay_ms)
+    if args.scenario == "failure":
+        workload.demo_failure(ctx, args.input, mode=args.mode, victim_name=args.victim,
+                              waves=args.waves, delay_ms=args.delay_ms)
+        return 0
+    from clusterctl.scenarios import run_scenario
+
+    d = run_scenario(ctx, args.scenario)
+    print(f"{args.scenario}: identical={d['identical']} lost_tasks={d['lost_tasks']} "
+          f"fetch_failed={d['fetch_failed']} resubmitted={d['resubmit_count']} "
+          f"speculatable={d['speculatable']} speculative_wins={d['speculative_wins']}")
     return 0
 
 
@@ -422,8 +430,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(fn=cmd_bench)
 
     sp = sub.add_parser("demo", help="failure-recovery demo")
-    sp.add_argument("scenario", choices=["failure"])
-    sp.add_argument("--input", required=True)
+    sp.add_argument("scenario", choices=["failure", "shuffle", "straggler", "cascade"],
+                    help="failure: kill a busy worker | shuffle: kill during the shuffle read | "
+                         "straggler: throttle a worker, speculative execution | cascade: two workers die")
+    sp.add_argument("--input", default="corpus.txt", help="input for the 'failure' scenario")
     sp.add_argument("--mode", choices=["worker", "executor"], default="worker")
     sp.add_argument("--victim", help="worker name to kill (default: first busy worker)")
     sp.add_argument("--waves", type=int, default=4, help="partitions = cores x waves")

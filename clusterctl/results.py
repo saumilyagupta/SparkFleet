@@ -16,6 +16,11 @@ LOST_EXEC_RE = re.compile(r"Lost executor (\S+) on ([\d.]+): (.*)$")
 LOST_TASK_RE = re.compile(r"Lost task (\d+)\.(\d+) in stage")
 RETRY_RE = re.compile(r"Starting task (\d+)\.([1-9]\d*) in stage [\d.]+ \(TID \d+\) \(([\d.]+)")
 STAGE_DONE_RE = re.compile(r"DAGScheduler: (\w+Stage \d+) \((\w+) at [^)]*\) finished in ([\d.]+) s")
+FETCH_FAILED_RE = re.compile(r"FetchFailed|Missing an output location for shuffle")
+RESUBMIT_RE = re.compile(r"Resubmitting (ShuffleMapStage \d+|ResultStage \d+)|Resubmitted ShuffleMapTask")
+SPECULATABLE_RE = re.compile(r"Marking task [\d.]+ in stage [\d.]+ .*as speculatable")
+SPEC_KILL_RE = re.compile(r"Killing attempt \d+ for task [\d.]+ in stage [\d.]+ .*another attempt succeeded"
+                          r"|Killing attempt \d+ for task [\d.]+ in stage [\d.]+ .*as the attempt \d+ succeeded")
 TOP_RE = re.compile(r"^\s*(\d+)\s+(\S+)\s*$")
 SAFE_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -25,6 +30,7 @@ def parse_driver_log(lines: list[str]) -> dict:
     summary: dict = {}
     executors: dict[str, dict] = {}
     lost_executors, lost_tasks, retried, stages, top = [], 0, [], [], []
+    fetch_failed, resubmits, speculatable, spec_killed = 0, [], 0, 0
     in_top = False
     for raw in lines:
         line = raw.split("] ", 1)[1] if raw.startswith("[") and "] " in raw else raw
@@ -36,6 +42,14 @@ def parse_driver_log(lines: list[str]) -> dict:
             lost_tasks += 1
         if m := RETRY_RE.search(line):
             retried.append({"partition": int(m.group(1)), "attempt": int(m.group(2)), "ip": m.group(3)})
+        if FETCH_FAILED_RE.search(line):
+            fetch_failed += 1
+        if m := RESUBMIT_RE.search(line):
+            resubmits.append(m.group(0))
+        if SPECULATABLE_RE.search(line):
+            speculatable += 1
+        if SPEC_KILL_RE.search(line):
+            spec_killed += 1
         if m := STAGE_DONE_RE.search(line):
             stages.append({"stage": m.group(1), "op": m.group(2), "seconds": float(m.group(3))})
         if line.startswith("WORDCOUNT_DONE"):
@@ -59,6 +73,8 @@ def parse_driver_log(lines: list[str]) -> dict:
         "summary": summary, "top": top, "executors": list(executors.values()),
         "lost_executors": lost_executors, "lost_tasks": lost_tasks,
         "retried_tasks": len(retried), "retries": retried[:50], "stages": stages,
+        "fetch_failed": fetch_failed, "resubmitted": resubmits[:20], "resubmit_count": len(resubmits),
+        "speculatable": speculatable, "speculative_wins": spec_killed,
     }
 
 
@@ -104,17 +120,18 @@ def results_index(paths: ProjectPaths) -> dict:
     """Newest-first view of saved runs, demos, reports and logs in results/."""
     folder = paths.results_dir
     if not folder.is_dir():
-        return {"wordcount": [], "demos": [], "reports": [], "logs": []}
+        return {"wordcount": [], "demos": [], "bench": [], "reports": [], "logs": []}
 
     def newest(pattern: str) -> list[Path]:
         return sorted(folder.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
 
     runs = [d for p in newest("wordcount-*.json") if (d := _load(p))]
     demos = [d for p in newest("demo-*.json") if (d := _load(p))]
+    bench = [d for p in newest("bench-*.json") if (d := _load(p)) and "table" in d]
     reports = [{"name": p.name, "modified": _mtime(p)} for p in newest("evidence-*.html")]
     logs = [{"name": p.name, "modified": _mtime(p), "bytes": p.stat().st_size}
             for p in newest("*.log")]
-    return {"wordcount": runs, "demos": demos, "reports": reports, "logs": logs}
+    return {"wordcount": runs, "demos": demos, "bench": bench, "reports": reports, "logs": logs}
 
 
 def safe_result_file(paths: ProjectPaths, name: str) -> Path:

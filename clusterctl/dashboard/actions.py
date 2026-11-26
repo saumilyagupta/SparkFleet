@@ -52,6 +52,10 @@ class DemoParams(_Params):
     delay_ms: int = Field(default=12000, ge=0, le=600_000)
 
 
+class ScenarioParams(_Params):
+    scenario: Literal["shuffle", "straggler", "cascade"]
+
+
 @dataclass(frozen=True)
 class Action:
     fn: Callable[[Context, BaseModel], object]
@@ -124,6 +128,12 @@ def do_demo_failure(ctx: Context, p: DemoParams) -> None:
                           waves=p.waves, delay_ms=p.delay_ms)
 
 
+def do_demo_scenario(ctx: Context, p: ScenarioParams) -> None:
+    from clusterctl.scenarios import run_scenario
+
+    run_scenario(ctx, p.scenario)
+
+
 def do_evidence(ctx: Context, _p: NoParams) -> None:
     """Write results/evidence-<ts>.html (facts + latest runs) for the evaluator."""
     from clusterctl.evidence import generate_report  # noqa: PLC0415 - optional module, import on use
@@ -145,5 +155,6 @@ def default_actions() -> dict[str, Action]:
         "push_data": Action(do_push_data, PushParams),
         "run_wordcount": Action(do_run_wordcount, RunParams),
         "demo_failure": Action(do_demo_failure, DemoParams, needs_vault=True),
+        "demo_scenario": Action(do_demo_scenario, ScenarioParams, needs_vault=True),
         "evidence": Action(do_evidence),
     }
