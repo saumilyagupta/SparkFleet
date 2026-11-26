@@ -239,7 +239,7 @@ def daemon_opts(inventory: Inventory) -> str:
         return ""
     opts = ("-Dspark.deploy.recoveryMode=ZOOKEEPER "
             f"-Dspark.deploy.zookeeper.url={zookeeper_connect(inventory)} -Dspark.deploy.zookeeper.dir=/spark")
-    return f'export SPARK_DAEMON_JAVA_OPTS="{opts}"'
+    return f'export SPARK_DAEMON_JAVA_OPTS="{opts}"\n'  # carries its own newline: HA off adds nothing
 
 
 def services_for(inventory: Inventory, host: Host) -> tuple[str, ...]:

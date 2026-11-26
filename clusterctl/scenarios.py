@@ -33,6 +33,8 @@ from clusterctl.workload import (DemoTimeline, WorkloadError, _key_lines, _pick_
 
 POLL_S = 2
 START_TIMEOUT_S = 180
+JOB_DEADLINE_S = 30 * 60
+REST_ERRORS = (RemoteError, KeyError, IndexError, ValueError, TypeError, TimeoutError, OSError)
 CASCADE_GAP_S = 20
 SCENARIOS = ("shuffle", "straggler", "cascade")
 SPECULATION_CONF = ("spark.speculation=true", "spark.speculation.multiplier=1.5",
@@ -79,7 +81,7 @@ def _wait_for(ctx: Context, s: HostSession, what: str, check: Callable[[str], ob
         try:
             app = _app_id(ctx, s)
             found = check(app) if app else None
-        except (RemoteError, KeyError, IndexError, ValueError):
+        except REST_ERRORS:
             continue
         if found:
             return found
@@ -131,12 +133,66 @@ def _throttle(ctx: Context, host: Host, quota: str) -> None:
 # ------------------------------------------------------------------ runner
 
 def _ensure_input(ctx: Context, plan: Plan) -> str:
-    """Return the sha256 the result must match (single-machine reference)."""
+    """Return the sha256 the result must match (single-machine reference). Never starts a
+    long data generation in the middle of a demo: missing inputs fail fast with the fix."""
     local_ref = reference_counts(ctx.paths, plan.input_name)
     if local_ref is not None:
         return sha256(local_ref)
-    info = generate_on_cluster(ctx, int(plan.input_name.split("-")[1].removesuffix("mb.txt")))
-    return info["reference_sha256"]
+    if not plan.input_name.startswith("corpus-"):
+        raise WorkloadError(f"{plan.input_name} is missing on this laptop; run "
+                            f"'clusterctl data push {plan.input_name}' first")
+    data = ctx.inventory.cluster.data_dir
+    with ctx.session(ctx.inventory.master) as s:
+        ref_sha = _remote_sha256(s, posixpath.join(data, "output", f"reference-{plan.input_name}.tsv"))
+        have_input = s.run(f"test -s {shlex.quote(posixpath.join(data, 'input', plan.input_name))}",
+                           check=False).ok
+    if not ref_sha or not have_input:
+        size = plan.input_name.removeprefix("corpus-").removesuffix("mb.txt")
+        raise WorkloadError(f"{plan.input_name} or its reference count is missing; prepare it before "
+                            f"the demo with: clusterctl data generate --size-mb {size}")
+    return ref_sha
+
+
+def _no_other_app_running(ctx: Context) -> None:
+    """Scenarios read the driver UI on port 4040; another running app would own that port."""
+    with ctx.session(ctx.inventory.master) as s:
+        try:
+            apps = fetch_json(s, _app_base(ctx), timeout=15)
+        except REST_ERRORS:
+            return  # nothing listening on 4040: no driver running
+    if apps:
+        raise WorkloadError(f"another Spark application is running ({apps[0].get('name')}); "
+                            "wait for it to finish (for example the benchmark) before a demo")
+
+
+def _restore(ctx: Context, tl: DemoTimeline, victims: list[Host], throttled: list[Host]) -> list[str]:
+    """Undo every injected fault. Each step is independent: one failure never skips the rest."""
+    errors = []
+    for host in throttled:
+        try:
+            _throttle(ctx, host, "")
+            tl.add(ctx, f"CPU throttle removed from {host.name}")
+        except Exception as exc:  # noqa: BLE001 - keep restoring the others
+            errors.append(f"un-throttle {host.name}: {exc}")
+    for host in victims:
+        try:
+            _start_worker(ctx, host)
+            tl.add(ctx, f"restarted spark-worker on {host.name}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"restart {host.name}: {exc}")
+    for err in errors:
+        ctx.reporter.log("demo", f"RESTORE FAILED: {err}", "error")
+    return errors
+
+
+def _kill_job(ctx: Context, pid: str) -> None:
+    """Never leave an orphaned demo driver holding the cluster's cores."""
+    try:
+        with ctx.session(ctx.inventory.master) as s:
+            s.run(f"pkill -TERM -s {shlex.quote(pid)} || kill {shlex.quote(pid)}", check=False)
+        ctx.reporter.log("demo", f"stopped the demo job (pid {pid}) after an error", "warn")
+    except Exception as exc:  # noqa: BLE001
+        ctx.reporter.log("demo", f"could not stop demo job pid {pid}: {exc}", "error")
 
 
 def run_scenario(ctx: Context, scenario: str) -> dict:
@@ -144,6 +200,7 @@ def run_scenario(ctx: Context, scenario: str) -> dict:
     cores = int(state.get("cores") or 1)
     plan = plan_for(scenario, cores)
     expected_sha = _ensure_input(ctx, plan)
+    _no_other_app_running(ctx)
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
     tag = f"{scenario}-{stamp}"
     tl = DemoTimeline()
@@ -154,6 +211,7 @@ def run_scenario(ctx: Context, scenario: str) -> dict:
     job_opts = ("--reduce-delay-ms", str(plan.reduce_delay_ms)) if plan.reduce_delay_ms else ()
     tl.add(ctx, f"scenario '{scenario}': {len(alive_worker_ips(state))} workers / {cores} cores, "
                 f"input {plan.input_name}, {plan.partitions} partitions")
+    pid, finished = "", False
     try:
         with ctx.session(master) as s:
             _upload_job(ctx, s)
@@ -162,8 +220,12 @@ def run_scenario(ctx: Context, scenario: str) -> dict:
             pid = s.run(f"setsid nohup {cmd} > {shlex.quote(log_path)} 2>&1 < /dev/null & echo $!").out.strip()
             tl.add(ctx, f"job started (pid {pid})")
             _inject(ctx, s, scenario, tl, victims, throttled)
+            deadline = time.time() + JOB_DEADLINE_S
             while s.run(f"kill -0 {shlex.quote(pid)}", check=False).ok:
+                if time.time() > deadline:
+                    raise WorkloadError(f"job still running after {JOB_DEADLINE_S}s")
                 time.sleep(3)
+            finished = True
             log_text = s.read_text(log_path)
             if "WORDCOUNT_DONE" not in log_text:
                 raise WorkloadError(f"job did not finish; see {log_path} on {master.name}")
@@ -171,12 +233,11 @@ def run_scenario(ctx: Context, scenario: str) -> dict:
             result_sha = _remote_sha256(s, remote_output)
             tl.add(ctx, "job finished despite the fault", "ok")
     finally:
-        for host in throttled:
-            _throttle(ctx, host, "")
-            tl.add(ctx, f"CPU throttle removed from {host.name}")
-        for host in victims:
-            _start_worker(ctx, host)
-            tl.add(ctx, f"restarted spark-worker on {host.name}")
+        if pid and not finished:
+            _kill_job(ctx, pid)
+        restore_errors = _restore(ctx, tl, victims, throttled)
+    if restore_errors:
+        raise WorkloadError("cluster not fully restored: " + "; ".join(restore_errors))
     verify(ctx)
     tl.add(ctx, "all workers ALIVE again", "ok")
     identical = result_sha == expected_sha
@@ -190,24 +251,24 @@ def _inject(ctx: Context, s: HostSession, scenario: str, tl: DemoTimeline,
         stage = _reduce_stage_running(ctx, s)
         victim = _busy_victim(ctx, s)
         tl.add(ctx, f"map stage done, reduce stage {stage} reading shuffle data; killing {victim.name}")
+        victims.append(victim)  # record BEFORE acting: cleanup must see it even if SSH dies mid-call
         _stop_worker(ctx, victim)
-        victims.append(victim)
         tl.add(ctx, f"stopped spark-worker on {victim.name}: its map outputs are now lost", "warn")
     elif scenario == "straggler":
         victim = _busy_victim(ctx, s)
-        _throttle(ctx, victim, "100%")
         throttled.append(victim)
+        _throttle(ctx, victim, "100%")
         tl.add(ctx, f"{victim.name} throttled to 1 CPU core (cgroup CPUQuota=100%): it is now a straggler",
                "warn")
     elif scenario == "cascade":
         first = _busy_victim(ctx, s)
-        _stop_worker(ctx, first)
         victims.append(first)
+        _stop_worker(ctx, first)
         tl.add(ctx, f"stopped spark-worker on {first.name} (first failure)", "warn")
         time.sleep(CASCADE_GAP_S)
         second = _busy_victim(ctx, s, exclude=(first.name,))
-        _stop_worker(ctx, second)
         victims.append(second)
+        _stop_worker(ctx, second)
         tl.add(ctx, f"stopped spark-worker on {second.name} (second failure, {CASCADE_GAP_S}s later)", "warn")
 
 
@@ -231,7 +292,7 @@ def _save(ctx: Context, scenario: str, stamp: str, plan: Plan, tl: DemoTimeline,
         "recovered": {"file": f"{scenario}-{stamp}.tsv (on master)", "sha256": result_sha},
         "timeline": [{"t": round(t, 1), "event": e} for t, e in tl.events],
         **{k: parsed[k] for k in ("lost_executors", "lost_tasks", "retried_tasks", "executors", "stages",
-                                  "summary", "fetch_failed", "resubmitted", "resubmit_count",
+                                  "summary", "fetch_failed", "lost_map_outputs", "resubmitted", "resubmit_count",
                                   "speculatable", "speculative_wins")},
         "key_log_lines": sorted(set(key_lines + extra), key=lambda ln: ln[:17])[:30],
         "report_file": f"{base}.md", "log_file": log_file.name,

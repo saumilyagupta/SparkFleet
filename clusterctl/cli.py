@@ -352,6 +352,22 @@ def cmd_ha(paths: ProjectPaths, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_archive(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.archive import archive
+
+    secrets: tuple[str, ...] = ()
+    if paths.vault.exists():
+        vault = open_vault(paths)
+        secrets = tuple(s for s in (vault.get(n) for n in vault.names()) if s)
+    result = archive(paths, secrets)
+    for name in result.copied:
+        print(f"  copied     docs/results/{name}")
+    for name in result.refused:
+        print(f"  REFUSED    {name}")
+    print(f"{len(result.copied)} copied, {len(result.unchanged)} unchanged, {len(result.refused)} refused")
+    return 1 if result.refused else 0
+
+
 def cmd_tunnel(paths: ProjectPaths, args: argparse.Namespace) -> int:
     from clusterctl.tunnel import open_tunnels
 
@@ -470,6 +486,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("history", help="applications the master has run").set_defaults(fn=cmd_history)
     sub.add_parser("evidence", help="write an offline HTML evidence report to results/").set_defaults(fn=cmd_evidence)
 
+    sub.add_parser("archive", help="copy results into docs/results/ (secret-scanned) for committing"
+                   ).set_defaults(fn=cmd_archive)
     sub.add_parser("tunnel", help="forward Spark web UIs to localhost").set_defaults(fn=cmd_tunnel)
 
     sp = sub.add_parser("dashboard", help="local web dashboard")

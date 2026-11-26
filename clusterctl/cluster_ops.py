@@ -44,7 +44,8 @@ def master_url(ctx: Context, host: Host | None = None) -> str:
 def master_state(ctx: Context) -> dict:
     """State of the ACTIVE master. With HA, the first master reporting ALIVE wins
     (a STANDBY knows no workers); without HA this is simply the one master."""
-    fallback, last_error = None, None
+    rank = {"ALIVE": 0, "RECOVERING": 1, "COMPLETING_RECOVERY": 1, "STANDBY": 2}
+    best, last_error = None, None
     for host in ctx.inventory.masters:
         try:
             with ctx.session(host) as s:
@@ -54,9 +55,10 @@ def master_state(ctx: Context) -> dict:
             continue
         if state.get("status") == "ALIVE" or len(ctx.inventory.masters) == 1:
             return state
-        fallback = fallback or state
-    if fallback is not None:
-        return fallback
+        if best is None or rank.get(state.get("status"), 3) < rank.get(best.get("status"), 3):
+            best = state
+    if best is not None:
+        return best
     raise last_error if isinstance(last_error, RemoteError) else RemoteError(f"no master reachable: {last_error}")
 
 

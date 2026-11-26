@@ -9,6 +9,9 @@ User={{user}}
 Environment=ZOO_LOG_DIR={{zookeeper_data}}/logs
 ExecStart={{zookeeper_home}}/bin/zkServer.sh start-foreground {{zookeeper_home}}/conf/zoo.cfg
 Restart=on-failure
+# Same nodes run 24-core executors: keep ZooKeeper heartbeats on time.
+CPUWeight=500
+Nice=-5
 RestartSec=5
 SuccessExitStatus=143
 

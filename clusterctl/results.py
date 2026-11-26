@@ -19,8 +19,8 @@ STAGE_DONE_RE = re.compile(r"DAGScheduler: (\w+Stage \d+) \((\w+) at [^)]*\) fin
 FETCH_FAILED_RE = re.compile(r"FetchFailed|Missing an output location for shuffle")
 RESUBMIT_RE = re.compile(r"Resubmitting (ShuffleMapStage \d+|ResultStage \d+)|Resubmitted ShuffleMapTask")
 SPECULATABLE_RE = re.compile(r"Marking task [\d.]+ in stage [\d.]+ .*as speculatable")
-SPEC_KILL_RE = re.compile(r"Killing attempt \d+ for task [\d.]+ in stage [\d.]+ .*another attempt succeeded"
-                          r"|Killing attempt \d+ for task [\d.]+ in stage [\d.]+ .*as the attempt \d+ succeeded")
+SPEC_KILL_RE = re.compile(r"Killing attempt \d+ for task [\d.]+ in stage [\d.]+ .*as the attempt ([1-9]\d*) succeeded")
+FETCH_EVENT_RE = re.compile(r"FetchFailed\(BlockManagerId\([^)]*\), shuffleId=(\d+), mapIndex=(-?\d+)")
 TOP_RE = re.compile(r"^\s*(\d+)\s+(\S+)\s*$")
 SAFE_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -31,6 +31,7 @@ def parse_driver_log(lines: list[str]) -> dict:
     executors: dict[str, dict] = {}
     lost_executors, lost_tasks, retried, stages, top = [], 0, [], [], []
     fetch_failed, resubmits, speculatable, spec_killed = 0, [], 0, 0
+    lost_map_outputs: set[tuple[str, str]] = set()
     in_top = False
     for raw in lines:
         line = raw.split("] ", 1)[1] if raw.startswith("[") and "] " in raw else raw
@@ -44,6 +45,8 @@ def parse_driver_log(lines: list[str]) -> dict:
             retried.append({"partition": int(m.group(1)), "attempt": int(m.group(2)), "ip": m.group(3)})
         if FETCH_FAILED_RE.search(line):
             fetch_failed += 1
+        if m := FETCH_EVENT_RE.search(line):
+            lost_map_outputs.add((m.group(1), m.group(2)))
         if m := RESUBMIT_RE.search(line):
             resubmits.append(m.group(0))
         if SPECULATABLE_RE.search(line):
@@ -73,7 +76,7 @@ def parse_driver_log(lines: list[str]) -> dict:
         "summary": summary, "top": top, "executors": list(executors.values()),
         "lost_executors": lost_executors, "lost_tasks": lost_tasks,
         "retried_tasks": len(retried), "retries": retried[:50], "stages": stages,
-        "fetch_failed": fetch_failed, "resubmitted": resubmits[:20], "resubmit_count": len(resubmits),
+        "fetch_failed": fetch_failed, "lost_map_outputs": len(lost_map_outputs), "resubmitted": resubmits[:20], "resubmit_count": len(resubmits),
         "speculatable": speculatable, "speculative_wins": spec_killed,
     }
 

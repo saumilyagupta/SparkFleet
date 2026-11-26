@@ -13,7 +13,7 @@ import threading
 import time
 from datetime import datetime
 
-from clusterctl.cluster_ops import fetch_json
+from clusterctl.cluster_ops import fetch_json, verify
 from clusterctl.context import Context
 from clusterctl.inventory import ClusterConfig, Host, Inventory
 from clusterctl.provision import _node_download, _remote_sha512, render_values
@@ -22,7 +22,7 @@ from clusterctl.results import parse_driver_log, reference_counts, sha256, write
 from clusterctl.spark_dist import parse_sha512, _fetch
 from clusterctl.ssh import HostSession, RemoteError
 from clusterctl.workload import DemoTimeline, WorkloadError, _key_lines, _remote_paths, _remote_sha256, \
-    _upload_job, submit_command
+    _upload_job, run_wordcount, submit_command
 
 ZK_MIRRORS = ("https://downloads.apache.org/zookeeper", "https://archive.apache.org/dist/zookeeper")
 FAILOVER_TIMEOUT_S = 240
@@ -146,34 +146,59 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
         raise WorkloadError(f"{input_name} must exist locally for the reference count")
     stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
     tag = f"master-failover-{stamp}"
-    cores = 72
+    cores = int(verify(ctx).get("cores") or 1)
     log_path = posixpath.join(inv.cluster.data_dir, "logs", f"demo-{tag}.log")
-    with ctx.session(primary) as s:
-        _upload_job(ctx, s)
-        cmd = submit_command(ctx, input_name, tag, partitions=4 * cores, delay_ms=8000)
-        pid = s.run(f"setsid nohup {cmd} > {shlex.quote(log_path)} 2>&1 < /dev/null & echo $!").out.strip()
-        tl.add(ctx, f"job started with master URL {inv.spark_master_url} (pid {pid})")
-        time.sleep(15)
-        with ctx.session(primary, need_sudo=True) as p:
-            p.sudo("systemctl stop spark-master")
-        tl.add(ctx, f"stopped spark-master on {primary.name}: the primary master is DOWN", "warn")
-        took = _wait_status(ctx, standby, "ALIVE", FAILOVER_TIMEOUT_S)
-        tl.add(ctx, f"ZooKeeper elected {standby.name}: standby master ALIVE after {took:.0f}s", "ok")
-        while s.run(f"kill -0 {shlex.quote(pid)}", check=False).ok:
-            time.sleep(3)
-        log_text = s.read_text(log_path)
-        if "WORDCOUNT_DONE" not in log_text:
-            raise WorkloadError(f"job did not finish; see {log_path} on {primary.name}")
-        _, _, remote_output = _remote_paths(ctx, input_name, tag)
-        result_sha = _remote_sha256(s, remote_output)
-        tl.add(ctx, "job finished under the new master", "ok")
-    with ctx.session(primary, need_sudo=True) as p:
-        p.sudo("systemctl start spark-master")
+    expected = sha256(reference)
+    # 12 waves x 10 s = 2+ minutes: longer than the ~40-90 s ZooKeeper takes to elect the standby,
+    # so the job is genuinely still running when the new master takes over.
+    partitions, delay_ms = 12 * cores, 10_000
+    stopped_primary = False
+    try:
+        with ctx.session(primary) as s:
+            _upload_job(ctx, s)
+            cmd = submit_command(ctx, input_name, tag, partitions=partitions, delay_ms=delay_ms)
+            pid = s.run(f"setsid nohup {cmd} > {shlex.quote(log_path)} 2>&1 < /dev/null & echo $!").out.strip()
+            tl.add(ctx, f"job started with master URL {inv.spark_master_url} (pid {pid}, {partitions} partitions)")
+            time.sleep(15)
+            stopped_primary = True
+            with ctx.session(primary, need_sudo=True) as p:
+                p.sudo("systemctl stop spark-master")
+            tl.add(ctx, f"stopped spark-master on {primary.name}: the primary master is DOWN", "warn")
+            took = _wait_status(ctx, standby, "ALIVE", FAILOVER_TIMEOUT_S)
+            running = s.run(f"kill -0 {shlex.quote(pid)}", check=False).ok
+            tl.add(ctx, f"ZooKeeper elected {standby.name}: standby master ALIVE after {took:.0f}s"
+                        + ("; the job is still running" if running else "; WARNING: the job had already ended"),
+                   "ok" if running else "warn")
+            deadline = time.time() + FAILOVER_TIMEOUT_S * 5
+            while s.run(f"kill -0 {shlex.quote(pid)}", check=False).ok:
+                if time.time() > deadline:
+                    s.run(f"pkill -TERM -s {shlex.quote(pid)} || kill {shlex.quote(pid)}", check=False)
+                    raise WorkloadError("failover job did not finish in time; stopped it")
+                time.sleep(3)
+            log_text = s.read_text(log_path)
+            if "WORDCOUNT_DONE" not in log_text:
+                raise WorkloadError(f"job did not finish; see {log_path} on {primary.name}")
+            _, _, remote_output = _remote_paths(ctx, input_name, tag)
+            result_sha = _remote_sha256(s, remote_output)
+            if running:
+                tl.add(ctx, "the running job finished under the new master", "ok")
+        # Strongest proof the new master works: a brand-new application is accepted by it.
+        after = run_wordcount(ctx, input_name, tag=f"after-failover-{stamp}", partitions=cores)
+        new_app_ok = sha256(after) == expected
+        tl.add(ctx, f"new application submitted after failover ran on {standby.name}: "
+                    f"result identical={new_app_ok}", "ok" if new_app_ok else "error")
+    finally:
+        if stopped_primary:  # never leave the primary master stopped, whatever happened above
+            try:
+                with ctx.session(primary, need_sudo=True) as p:
+                    p.sudo("systemctl start spark-master")
+            except Exception as exc:  # noqa: BLE001
+                ctx.reporter.log("demo", f"RESTORE FAILED: could not restart {primary.name}: {exc}", "error")
     _wait_status(ctx, primary, "STANDBY", 120)
     tl.add(ctx, f"{primary.name} restarted and rejoined as STANDBY", "ok")
-    identical = result_sha == sha256(reference)
-    tl.add(ctx, f"result identical to single-machine count: {identical}", "ok" if identical else "error")
-    return _save(ctx, stamp, tag, primary, standby, tl, log_text, result_sha, sha256(reference), input_name)
+    identical = result_sha == expected and new_app_ok
+    tl.add(ctx, f"results identical to single-machine count: {identical}", "ok" if identical else "error")
+    return _save(ctx, stamp, tag, primary, standby, tl, log_text, result_sha, expected, input_name)
 
 
 def _save(ctx: Context, stamp: str, tag: str, primary: Host, standby: Host, tl: DemoTimeline, log_text: str,

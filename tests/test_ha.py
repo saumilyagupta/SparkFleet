@@ -120,3 +120,38 @@ def test_remove_stale_services_only_touches_unwanted_units():
 
     assert removed == ["zookeeper"]
     assert len(sudo_calls) == 1 and "disable --now zookeeper" in sudo_calls[0]
+
+
+
+
+@pytest.mark.parametrize("host_name", ["m1", "w1", "w2"])
+def test_ha_off_spark_env_has_no_extra_line(sample_inventory, host_name):
+    host = sample_inventory.get(host_name)
+    env = render("spark-env.sh", render_values(sample_inventory, host))
+    worker_lines = "export SPARK_WORKER_CORES=4\nexport SPARK_WORKER_MEMORY=4g\n" if host_name == "w1" else "\n"
+    assert env.endswith('export SPARK_LOG_DIR="/opt/spark-data/logs"\n' + worker_lines)
+    assert "SPARK_DAEMON_JAVA_OPTS" not in env
+
+
+def test_ha_on_spark_env_ends_with_daemon_opts_line(ha_inventory):
+    env = render("spark-env.sh", render_values(ha_inventory, ha_inventory.master))
+    assert env.endswith('-Dspark.deploy.zookeeper.dir=/spark"\n')
+
+
+def test_master_state_prefers_recovering_over_standby(ha_inventory, monkeypatch):
+    states = {"10.0.0.1": {"status": "STANDBY"}, "10.0.0.2": {"status": "RECOVERING"}}
+
+    class _S:
+        def __init__(self, host):
+            self.host = host
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    ctx = SimpleNamespace(inventory=ha_inventory, session=lambda h, **_: _S(h))
+    monkeypatch.setattr(cluster_ops, "fetch_json", lambda s, url, timeout=60: states[s.host.ip])
+
+    assert cluster_ops.master_state(ctx)["status"] == "RECOVERING"
