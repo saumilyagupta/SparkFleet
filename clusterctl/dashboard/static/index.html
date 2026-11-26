@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>clusterctl console</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div id="banner" class="banner" role="alert" hidden></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>clusterctl</h1>
+        <p class="sub">spark standalone &middot; <span id="jump-label">direct</span></p>
+      </div>
+    </div>
+    <dl class="readout" aria-live="polite">
+      <div class="metric metric-master">
+        <dt>master</dt>
+        <dd><span id="m-status" class="pill pill-pending">&hellip;</span></dd>
+      </div>
+      <div class="metric"><dt>workers alive</dt><dd id="m-workers" class="num">&ndash;</dd></div>
+      <div class="metric"><dt>cores</dt><dd id="m-cores" class="num">&ndash;</dd></div>
+      <div class="metric"><dt>memory</dt><dd id="m-memory" class="num">&ndash;</dd></div>
+    </dl>
+    <div class="refresh">
+      <button id="btn-refresh" class="btn btn-ghost" type="button">Refresh</button>
+      <span id="refresh-at" class="muted mono">never</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel span-main" aria-labelledby="h-hosts">
+      <div class="panel-head">
+        <h2 id="h-hosts">Hosts</h2>
+        <span class="muted">tick rows to limit actions</span>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="hosts">
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr">select</span></th>
+              <th scope="col">name</th><th scope="col">ip</th><th scope="col">user</th>
+              <th scope="col">role</th><th scope="col">reach</th><th scope="col">java</th>
+              <th scope="col">spark</th><th scope="col">services</th><th scope="col">worker</th>
+              <th scope="col"><span class="sr">manage</span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel span-side" aria-labelledby="h-vault">
+      <div class="panel-head">
+        <h2 id="h-vault">Vault</h2>
+        <span id="vault-state" class="pill pill-pending">&hellip;</span>
+      </div>
+      <form id="vault-form" class="stack" autocomplete="off">
+        <label>master password
+          <input id="vault-pass" type="password" autocomplete="current-password" required minlength="1">
+        </label>
+        <label class="check" id="vault-create-row" hidden>
+          <input id="vault-create" type="checkbox"> create a new vault (min 8 chars)
+        </label>
+        <div class="row">
+          <button class="btn btn-primary" type="submit">Unlock</button>
+          <button id="vault-lock" class="btn btn-ghost" type="button">Lock</button>
+        </div>
+      </form>
+      <p class="muted small">Passwords are write-only. They are encrypted on disk and never sent back to this page.</p>
+    </section>
+
+    <section class="panel span-main" aria-labelledby="h-actions">
+      <div class="panel-head"><h2 id="h-actions">Operations</h2>
+        <span id="job-state" class="pill pill-idle">idle</span></div>
+      <div class="action-groups">
+        <div class="group">
+          <h3>lifecycle</h3>
+          <div class="btns">
+            <button class="btn btn-primary" data-action="up" type="button">Up (all-in-one)</button>
+            <button class="btn" data-action="bootstrap" type="button">Bootstrap</button>
+            <button class="btn" data-action="provision" type="button">Provision</button>
+            <button class="btn" data-action="start" type="button">Start</button>
+            <button class="btn btn-danger" data-action="stop" type="button">Stop</button>
+            <button class="btn" data-action="restart" type="button">Restart</button>
+            <button class="btn" data-action="verify" type="button">Verify</button>
+          </div>
+        </div>
+        <div class="group">
+          <h3>web ui tunnels</h3>
+          <div class="btns">
+            <button class="btn" data-action="tunnel" type="button">Open UI tunnels</button>
+            <button id="tunnel-close" class="btn btn-ghost" type="button">Close tunnels</button>
+          </div>
+          <ul id="tunnel-links" class="links">
+            <li><a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">:8080 master</a></li>
+            <li><a href="http://localhost:4040" target="_blank" rel="noopener noreferrer">:4040 running job</a></li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>workload</h3>
+          <div class="fields">
+            <label>local file (project dir)<input id="p-path" placeholder="data/sample.txt"></label>
+            <button class="btn" data-action="push_data" type="button">Push data</button>
+          </div>
+          <div class="fields">
+            <label>input name<input id="p-input" placeholder="sample.txt"></label>
+            <label>partitions<input id="p-partitions" type="number" min="0" value="0"></label>
+            <label>top<input id="p-top" type="number" min="1" value="20"></label>
+            <button class="btn" data-action="run_wordcount" type="button">Run Word Count</button>
+          </div>
+          <div class="fields">
+            <label>mode<select id="p-mode"><option>worker</option><option>executor</option></select></label>
+            <label>victim<select id="p-victim"><option value="">auto (busy worker)</option></select></label>
+            <label>waves<input id="p-waves" type="number" min="1" value="4"></label>
+            <label>delay ms<input id="p-delay" type="number" min="0" step="1000" value="12000"></label>
+            <button class="btn btn-danger" data-action="demo_failure" type="button">Failure demo</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel span-side" aria-labelledby="h-add">
+      <div class="panel-head"><h2 id="h-add">Add host</h2></div>
+      <form id="host-form" class="stack" autocomplete="off">
+        <label>name<input name="name" required pattern="[a-z][a-z0-9\-]{0,62}" placeholder="worker-05"></label>
+        <label>ip<input name="ip" required placeholder="10.0.0.15" inputmode="decimal"></label>
+        <label>user<input name="user" required placeholder="ubuntu"></label>
+        <label>role<select name="role"><option>worker</option><option>master</option></select></label>
+        <label>password <span class="muted">(stored in vault)</span>
+          <input name="password" type="password" autocomplete="new-password"></label>
+        <button class="btn btn-primary" type="submit">Add host</button>
+      </form>
+      <form id="import-form" class="stack import" autocomplete="off">
+        <h3>import systems.json</h3>
+        <label>file<input name="file" type="file" accept=".json,application/json" required></label>
+        <label>master <span class="muted">(name / ip / user)</span><input name="master"></label>
+        <label>jump alias <span class="muted">(blank = keep, "direct" = none)</span><input name="jump"></label>
+        <button class="btn" type="submit">Import</button>
+        <p class="muted small">Replaces the inventory. The file is parsed in memory and never saved.</p>
+      </form>
+    </section>
+
+    <section class="panel span-full log-panel" aria-labelledby="h-log">
+      <div class="panel-head">
+        <h2 id="h-log">Live log</h2>
+        <div class="row">
+          <label class="check"><input id="log-follow" type="checkbox" checked> follow</label>
+          <button id="log-clear" class="btn btn-ghost" type="button">Clear</button>
+        </div>
+      </div>
+      <ol id="log" class="log" aria-live="polite"></ol>
+    </section>
+
+    <section class="panel span-main" aria-labelledby="h-keys">
+      <div class="panel-head"><h2 id="h-keys">Key registry</h2></div>
+      <div class="table-wrap">
+        <table class="grid" id="keys">
+          <thead><tr><th scope="col">status</th><th scope="col">kind</th><th scope="col">owner</th>
+            <th scope="col">fingerprint</th><th scope="col">installed on</th>
+            <th scope="col"><span class="sr">revoke</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel span-side" aria-labelledby="h-audit">
+      <div class="panel-head"><h2 id="h-audit">Audit log</h2></div>
+      <ol id="audit" class="audit"></ol>
+    </section>
+  </main>
+</body>
+</html>
