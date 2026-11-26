@@ -250,7 +250,9 @@ def configure_firewall(session: HostSession, inventory: Inventory) -> str:
     peers = [h.ip for h in inventory.hosts if h.ip != session.host.ip]
     cmds = [f"ufw allow from {shlex.quote(ip)} >/dev/null" for ip in peers]
     # Admin access to the web UIs from wherever we SSH in from (laptop or jump host).
-    cmds.append("src=${SSH_CLIENT%% *}; [ -n \"$src\" ] && for p in 8080 8081 4040:4049; do "
+    cfg = inventory.cluster
+    ui_ports = f"{cfg.master_ui_port} {cfg.worker_ui_port} 4040:4049 {cfg.history_ui_port}"
+    cmds.append("src=${SSH_CLIENT%% *}; [ -n \"$src\" ] && for p in " + ui_ports + "; do "
                 "ufw allow proto tcp from \"$src\" to any port $p >/dev/null; done")
     session.sudo(" ; ".join(cmds), check=False)
     return f"ufw: allowed {len(peers)} peers + admin UI ports"

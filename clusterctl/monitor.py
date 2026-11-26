@@ -20,6 +20,8 @@ from clusterctl.ssh import HostSession
 
 INTERVAL_S = 3.0
 HISTORY_POINTS = 200   # 10 minutes at 3 s
+MASTER_FETCH_TIMEOUT_S = 15
+RETRY_DOWN_EVERY = 5   # ticks between reconnect attempts to a node that is down
 PROBE = "head -1 /proc/stat; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; cat /proc/loadavg"
 
 
@@ -76,6 +78,7 @@ class Sampler:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._down_ticks: dict[str, int] = {}
 
     def start(self) -> "Sampler":
         if self._thread is None or not self._thread.is_alive():
@@ -86,33 +89,54 @@ class Sampler:
 
     def stop(self) -> None:
         self._stop.set()
-        for session in list(self._sessions.values()):
+        if self._thread is not None and self._thread is not threading.current_thread():
+            self._thread.join(timeout=self.interval_s + 15)
+        for name in list(self._sessions):
+            self._drop(name)
+        if self.ctx.jump is not None:
+            self.ctx.jump.close()
+
+    def _drop(self, name: str) -> None:
+        """Forget AND close a session, so a flapping node never leaks SSH clients or jump channels."""
+        session = self._sessions.pop(name, None)
+        if session is not None:
             try:
                 session.close()
             except Exception:  # noqa: BLE001 - closing a dead session
                 pass
-        self._sessions.clear()
 
     def _session(self, host: Host) -> HostSession:
         session = self._sessions.get(host.name)
         transport = session.client.get_transport() if session else None
         if session is None or transport is None or not transport.is_active():
+            self._drop(host.name)
             session = self.ctx.session(host)
             self._sessions[host.name] = session
         return session
 
     def _probe(self, host: Host) -> tuple[str, Sample | None, str]:
+        down_for = self._down_ticks.get(host.name, 0)
+        if down_for and down_for % RETRY_DOWN_EVERY:
+            # Back off: reconnecting to a dead node blocks for the connect timeout.
+            self._down_ticks[host.name] = down_for + 1
+            return host.name, None, self._status.get(host.name, "down").removeprefix("down: ")
         try:
-            return host.name, parse_probe(self._session(host).run(PROBE, timeout=10).out), ""
+            sample = parse_probe(self._session(host).run(PROBE, timeout=10).out)
+            self._down_ticks.pop(host.name, None)
+            return host.name, sample, ""
         except Exception as exc:  # noqa: BLE001 - a down node is data, not an error
-            self._sessions.pop(host.name, None)
+            self._drop(host.name)
+            self._down_ticks[host.name] = down_for + 1
             return host.name, None, str(exc)
 
-    def _spark_cores(self) -> dict[str, int]:
+    def _spark_cores(self) -> dict[str, int] | None:
+        """Cores in use per worker, or None if the master could not be asked (not the same as idle)."""
         try:
-            state = fetch_json(self._session(self.ctx.inventory.master), master_url(self.ctx))
+            state = fetch_json(self._session(self.ctx.inventory.master), master_url(self.ctx),
+                               timeout=MASTER_FETCH_TIMEOUT_S)
         except Exception:  # noqa: BLE001
-            return {}
+            self._drop(self.ctx.inventory.master.name)
+            return None
         by_ip = {w.get("host"): int(w.get("coresused") or 0)
                  for w in state.get("workers", []) if w.get("state") == "ALIVE"}
         return {h.name: by_ip[h.ip] for h in self.ctx.inventory.hosts if h.ip in by_ip}
@@ -128,17 +152,19 @@ class Sampler:
                 if sample is None:
                     self._status[name] = f"down: {error[:120]}"
                     self._series[name].append({"t": now, "cpu": None, "mem": None, "load": None,
-                                               "spark_cores": 0})
+                                               "spark_cores": None})
                     self._prev.pop(name, None)
                     continue
                 prev = self._prev.get(name)
                 self._prev[name] = sample.cpu
-                self._status[name] = "up"
                 if prev is None:
-                    continue  # need two samples for a CPU delta
+                    self._status[name] = "starting"  # need two samples for a CPU delta
+                    continue
+                self._status[name] = "up"
+                cores = None if spark is None else spark.get(name, 0)
                 self._series[name].append({"t": now, "cpu": cpu_percent(prev, sample.cpu),
                                            "mem": mem_percent(sample), "load": sample.load1,
-                                           "spark_cores": spark.get(name, 0)})
+                                           "spark_cores": cores})
 
     def _loop(self) -> None:
         while not self._stop.is_set():

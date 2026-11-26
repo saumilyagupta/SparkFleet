@@ -14,6 +14,7 @@ from clusterctl.runner import HostResult, run_parallel
 from clusterctl.ssh import HostSession, RemoteError
 
 VERIFY_TIMEOUT_S = 120
+OPTIONAL_SERVICES = frozenset({"spark-history"})
 POLL_S = 3
 
 # Executed on the master with its own python3, so the laptop needs no route to port 8080.
@@ -27,8 +28,8 @@ _FETCH_JSON = (
 )
 
 
-def fetch_json(session: HostSession, url: str) -> dict | list:
-    out = session.run(f"python3 -c {shlex.quote(_FETCH_JSON)} {shlex.quote(url)}").out
+def fetch_json(session: HostSession, url: str, timeout: int = 60) -> dict | list:
+    out = session.run(f"python3 -c {shlex.quote(_FETCH_JSON)} {shlex.quote(url)}", timeout=timeout).out
     data = json.loads(out or "{}")
     if isinstance(data, dict) and "_error" in data:
         raise RemoteError(f"GET {url}: {data['_error']}")
@@ -45,11 +46,19 @@ def master_state(ctx: Context) -> dict:
         return fetch_json(s, master_url(ctx))
 
 
+def service_command(services: tuple[str, ...], action: str) -> str:
+    """systemctl chain for one host. Optional services (History Server) never fail the
+    operation; they start after and stop before the core daemons."""
+    core = [f"systemctl {action} {svc}" for svc in services if svc not in OPTIONAL_SERVICES]
+    optional = [f"(systemctl {action} {svc} || true)" for svc in services if svc in OPTIONAL_SERVICES]
+    return " && ".join(optional + core if action == "stop" else core + optional) or "true"
+
+
 def _systemctl(ctx: Context, hosts: tuple[Host, ...], action: str, label: str) -> list[HostResult]:
     def act(host: Host) -> str:
         services = services_for(ctx.inventory, host)
         with ctx.session(host, need_sudo=True) as s:
-            s.sudo(" && ".join(f"systemctl {action} {svc}" for svc in services))
+            s.sudo(service_command(services, action))
         return f"{action} {', '.join(services)}"
 
     return run_parallel(hosts, act, ctx.reporter, label)

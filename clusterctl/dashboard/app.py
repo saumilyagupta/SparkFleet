@@ -346,6 +346,7 @@ def create_app(paths: ProjectPaths, token: str, *, actions: dict[str, Action] | 
             raise HTTPException(401, "missing or invalid token")
 
     app = FastAPI(title="clusterctl dashboard", docs_url=None, redoc_url=None, openapi_url=None)
+    app.router.on_shutdown.append(lambda: st.shutdown())
     app.state.dashboard = st
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
 

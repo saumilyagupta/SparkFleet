@@ -68,8 +68,14 @@ class DashboardState:
 
     def sampler(self):
         """Live-load sampler, started on first use and kept for the dashboard's lifetime."""
-        if self._sampler is not None:
-            return self._sampler
+        current = self._sampler
+        if current is not None:
+            if getattr(current, "ctx", None) is None or current.ctx.inventory == self.load_inventory():
+                return current
+            with self._sampler_lock:  # inventory edited from the dashboard: sample the new host list
+                if self._sampler is current:
+                    self._sampler = None
+            current.stop()
         # Build the context BEFORE taking the lock: context() reads self.vault, which takes
         # the same (non-reentrant) lock.
         ctx = self.context()
@@ -82,6 +88,13 @@ class DashboardState:
 
                     self._sampler = Sampler(ctx).start()
             return self._sampler
+
+    def shutdown(self) -> None:
+        """Stop background work (sampler SSH sessions) when the dashboard exits."""
+        sampler = self._sampler
+        self._sampler = None
+        if sampler is not None and hasattr(sampler, "stop"):
+            sampler.stop()
 
     def registry(self) -> KeyRegistry:
         return KeyRegistry(self.paths.key_registry, self.paths.audit_log)

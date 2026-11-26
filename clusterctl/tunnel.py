@@ -26,6 +26,7 @@ BUFFER = 32768
 LOCAL_OFFSET = 10000
 PORT_SEARCH = 20
 JOB_UI_PORT = 4040
+HISTORY_LOCAL_PORT = 19080
 
 _UNAVAILABLE = (
     "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html; charset=utf-8\r\n"
@@ -56,7 +57,7 @@ def plan_forwards(ctx: Context) -> list[Forward]:
                 "'python -m clusterctl run --input corpus.txt' or the failure demo, then refresh."),
     ]
     if cfg.history_server:
-        forwards.append(Forward(19080, master.ip, cfg.history_ui_port, "History Server (finished jobs)",
+        forwards.append(Forward(HISTORY_LOCAL_PORT, master.ip, cfg.history_ui_port, "History Server (finished jobs)",
                                 "Start it with: python -m clusterctl start --limit " + master.name))
     for i, worker in enumerate(ctx.inventory.workers):
         forwards.append(Forward(cfg.worker_ui_port + LOCAL_OFFSET + i, worker.ip, cfg.worker_ui_port,

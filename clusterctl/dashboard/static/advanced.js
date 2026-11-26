@@ -7,12 +7,17 @@ const SPARK_CORES_PER_NODE = 24;
 const W = 320, H = 90;
 
 function sparkline(series, key, max, cls) {
-  const pts = series.filter((p) => p[key] != null);
-  if (pts.length < 2) return null;
+  if (series.filter((p) => p[key] != null).length < 2) return null;
   const t0 = series[0].t, t1 = series[series.length - 1].t || t0 + 1;
   const x = (t) => ((t - t0) / Math.max(1, t1 - t0)) * W;
   const y = (v) => H - (Math.min(v, max) / max) * (H - 4) - 2;
-  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join(" ");
+  let pen = "M";  // lift the pen at gaps (node down / master unreachable)
+  const d = series.map((p) => {
+    if (p[key] == null) { pen = "M"; return ""; }
+    const seg = `${pen}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`;
+    pen = "L";
+    return seg;
+  }).join(" ");
   return svg("path", { d, class: cls, fill: "none" });
 }
 
