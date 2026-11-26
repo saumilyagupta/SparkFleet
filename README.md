@@ -108,6 +108,9 @@ python -m clusterctl up --limit node-05,node-06
 | `data push F` | Copies an input file to `/opt/spark-data/input/` on every node |
 | `run --input F` | Runs Word Count on the cluster and saves the result to `results/` |
 | `demo failure --input F [--mode worker/executor]` | Runs the failure-recovery demo. Writes a report to `results/demo-*.md` |
+| `facts [--json]` | Shows hardware per node (CPU, RAM, vendor, `systemd-detect-virt`), as proof the machines are physical |
+| `history` | Lists every application the master has run, with cores and duration |
+| `evidence` | Writes an offline HTML evidence report to `results/evidence-*.html` |
 | `tunnel` | Forwards the Spark UIs to localhost |
 | `dashboard` | Starts the local web UI on 127.0.0.1 with a per-launch access token |
 
@@ -119,6 +122,8 @@ python -m clusterctl up --limit node-05,node-06
 - `/opt/spark/conf/spark-env.sh` and `spark-defaults.conf`, generated from `clusterctl/templates/`
 - The systemd unit `spark-master.service` on the master and `spark-worker.service` on each worker. Both are enabled at boot and restart on crash
 - A managed block in `/etc/hosts`, and ufw rules if ufw is active
+
+**Presenting the project?** Follow [docs/DEMO.md](docs/DEMO.md), a step-by-step evaluation runbook with a fallback plan.
 
 See [docs/SETUP.md](docs/SETUP.md) for the step-by-step setup and [docs/REPORT.md](docs/REPORT.md) for the architecture, a walkthrough of the code, and how Spark recovers from failure.
 
