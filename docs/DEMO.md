@@ -107,6 +107,16 @@ Show the dashboard's **Key registry** and **Audit log** panels.
 - Dashboard, then **Generate evidence report**, then open it. You can also run `.venv\Scripts\python -m clusterctl evidence`.
 - It is one offline page with every proof: status, topology, machines, Word Count, recovery, job history and setup. You can print it to PDF and submit it.
 
+## Bonus round: advanced demos (if time allows, 5–8 min)
+
+Pick whichever ones the evaluator's questions lead to. [ADVANCED.md](ADVANCED.md) has the full explanation and what to say for each.
+
+1. **History Server.** Open http://localhost:19080 (with `clusterctl tunnel` running). Every past run is there, including the failure runs with their failed attempts.
+2. **Scaling.** The dashboard's **Scaling benchmark** panel shows speedup against the number of workers, with the explanation sentence. Say: *"fixed overhead vs parallel work: Amdahl's law."*
+3. **`clusterctl demo shuffle`** (about 2 min). A worker is lost during the shuffle, giving `FetchFailed`, then Spark resubmits the map stage, and the result is identical.
+4. **`clusterctl demo straggler`** (about 2 min). A real CPU throttle slows one worker, then Spark launches speculative copies, and the copy that finishes first wins.
+5. **`clusterctl demo master-failover`** (about 3 min, HA must be enabled). The master is killed, ZooKeeper elects the standby, and the job still finishes.
+
 ## If something goes wrong on the day
 
 | Problem | What to do |

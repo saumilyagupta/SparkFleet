@@ -123,6 +123,8 @@ python -m clusterctl up --limit node-05,node-06
 - The systemd unit `spark-master.service` on the master and `spark-worker.service` on each worker. Both are enabled at boot and restart on crash
 - A managed block in `/etc/hosts`, and ufw rules if ufw is active
 
+**Advanced demos** (History Server, live load, scaling benchmark, shuffle/straggler/cascade faults, master HA): see [docs/ADVANCED.md](docs/ADVANCED.md).
+
 **Presenting the project?** Follow [docs/DEMO.md](docs/DEMO.md), a step-by-step evaluation runbook with a fallback plan.
 
 See [docs/SETUP.md](docs/SETUP.md) for the step-by-step setup and [docs/REPORT.md](docs/REPORT.md) for the architecture, a walkthrough of the code, and how Spark recovers from failure.
