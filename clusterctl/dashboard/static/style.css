@@ -324,3 +324,26 @@ table.grid tr.lost-worker { background: var(--warn-bg); box-shadow: inset 2px 0 
 .load-chart .load-spark { stroke: var(--accent); stroke-width: 2; opacity: .85; }
 .load-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); }
 .load-stats .load-spark-label { color: var(--accent); }
+
+/* ---------------------------------------------------------------- scaling benchmark */
+.sc-sentence { margin: 0 0 14px; padding: 10px 14px; font: 600 clamp(15px, 1.4vw, 18px)/1.4 var(--sans); border-left: 4px solid var(--accent); background: var(--warn-bg); border-radius: var(--radius); }
+.sc-split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); align-items: start; }
+.sc-fig { margin: 0; min-width: 0; padding: 10px 12px 6px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-grid); }
+.sc-side { min-width: 0; }
+.sc-chart { width: 100%; height: auto; display: block; }
+.sc-grid { stroke: var(--rule); stroke-width: 1; }
+.sc-tick { fill: var(--muted); font: 11px var(--mono); }
+.sc-axis { fill: var(--muted); font: 600 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.sc-legend { fill: var(--text); font: 12px var(--mono); }
+.sc-ideal { stroke: var(--rule-strong); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.sc-chart .sc-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.sc-chart .sc-dot { stroke: var(--panel); stroke-width: 1.5; }
+.sc-chart .s0 { --sc: var(--info); } .sc-chart .s1 { --sc: var(--ok); } .sc-chart .s2 { --sc: var(--accent); }
+.sc-chart .s3 { --sc: #f472b6; } .sc-chart .s4 { --sc: #5eead4; } .sc-chart .s5 { --sc: #c4b5fd; }
+.sc-chart .sc-line[class*=" s"] { stroke: var(--sc); }
+.sc-chart .sc-dot[class*=" s"] { fill: var(--sc); }
+.sc-table th[scope="row"] { font: 600 12px var(--mono); color: var(--text); white-space: nowrap; }
+.sc-table td { font-variant-numeric: tabular-nums; vertical-align: top; }
+.sc-table td b { font: 600 13px var(--mono); }
+.sc-cell-sub { display: block; color: var(--muted); font: 11px var(--mono); white-space: nowrap; }
+@media (max-width: 1100px) { .sc-split { grid-template-columns: minmax(0, 1fr); } }

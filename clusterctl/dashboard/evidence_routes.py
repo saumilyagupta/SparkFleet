@@ -43,7 +43,7 @@ def evidence_api_routes(r: APIRouter, st: DashboardState) -> None:
     def get_results() -> dict:
         index = results.results_index(st.paths)
         return {**index, "wordcount": index["wordcount"][:MAX_LISTED],
-                "demos": index["demos"][:MAX_LISTED]}
+                "demos": index["demos"][:MAX_LISTED], "bench": index["bench"][:MAX_LISTED]}
 
     @r.get("/monitor")
     def get_monitor() -> dict:

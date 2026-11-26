@@ -1,16 +1,18 @@
 """Offline evidence report: one self-contained HTML file proving the cluster works.
 
-Sections: summary, topology, physical nodes, Word Count result, failure recovery,
+Sections: summary, topology, physical nodes, Word Count result, scaling benchmark, failure recovery,
 job history, setup proof. No JavaScript, no external assets; prints cleanly to PDF.
 Contains NO secrets: no passwords, no private keys (fingerprints only).
 """
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from html import escape
 from pathlib import Path
 
+from clusterctl import scaling
 from clusterctl.cluster_ops import job_history, status
 from clusterctl.context import Context
 from clusterctl.facts import collect_facts
@@ -172,6 +174,80 @@ def _demo(demo: dict | None) -> str:
             "from the input, which every node holds. Word Count is deterministic, so the answer is unchanged.</p>")
 
 
+def _speedup_chart(bench: dict) -> str:
+    """Inline SVG: speedup vs workers, one polyline per input size plus the dashed ideal y = x."""
+    ks = scaling.worker_counts(bench) or [1]
+    k0, k1 = min(ks), max(ks)
+    peak = max([k1, 1.0] + [p[1] for s in scaling.sizes(bench) for p in scaling.series(bench, s)])
+    y_max = max(1, math.ceil(peak))
+    width, height, left, right, top, bottom = 640, 300, 52, 20, 18, 46
+    plot_w, plot_h = width - left - right, height - top - bottom
+
+    def x(k: float) -> float:
+        return left + plot_w / 2 if k1 == k0 else left + (k - k0) / (k1 - k0) * plot_w
+
+    def y(v: float) -> float:
+        return top + (1 - min(v, y_max) / y_max) * plot_h
+
+    parts = [f"<svg viewBox='0 0 {width} {height}' class='sc-chart' role='img' "
+             "aria-label='Speedup versus number of workers, one line per input size'>"]
+    step = 1 if y_max <= 6 else 2
+    for v in range(0, y_max + 1, step):
+        parts.append(f"<line x1='{left}' y1='{y(v):.1f}' x2='{width - right}' y2='{y(v):.1f}' class='sc-grid'/>"
+                     f"<text x='{left - 8}' y='{y(v) + 4:.1f}' class='sc-tick' text-anchor='end'>{v}×</text>")
+    for k in ks:
+        parts.append(f"<text x='{x(k):.1f}' y='{height - bottom + 18}' class='sc-tick' "
+                     f"text-anchor='middle'>{e(k)}</text>")
+    parts.append(f"<text x='{left + plot_w / 2:.1f}' y='{height - 6}' class='sc-axis' text-anchor='middle'>"
+                 "workers</text><text x='14' y='{0:.1f}' class='sc-axis' text-anchor='middle' "
+                 "transform='rotate(-90 14 {0:.1f})'>speedup vs 1 worker</text>".format(top + plot_h / 2))
+    parts.append(f"<line x1='{x(k0):.1f}' y1='{y(k0):.1f}' x2='{x(k1):.1f}' y2='{y(k1):.1f}' class='sc-ideal'/>")
+    for i, size in enumerate(scaling.sizes(bench)):
+        pts = scaling.series(bench, size)
+        coords = " ".join(f"{x(k):.1f},{y(v):.1f}" for k, v in pts)
+        parts.append(f"<polyline points='{coords}' class='sc-line s{i % 6}'/>")
+        parts.extend(f"<circle cx='{x(k):.1f}' cy='{y(v):.1f}' r='3.5' class='sc-dot s{i % 6}'>"
+                     f"<title>{e(size)} MB, {e(k)} workers: {v:.2f}×</title></circle>" for k, v in pts)
+    legend = [(f"{size} MB", f"sc-line s{i % 6}") for i, size in enumerate(scaling.sizes(bench))]
+    legend.append(("ideal (linear)", "sc-ideal"))
+    for i, (label, cls) in enumerate(legend):
+        ly = top + 12 + i * 18
+        parts.append(f"<line x1='{left + 12}' y1='{ly}' x2='{left + 34}' y2='{ly}' class='{cls}'/>"
+                     f"<text x='{left + 40}' y='{ly + 4}' class='sc-legend'>{e(label)}</text>")
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _scaling(bench: dict | None) -> str:
+    if not bench:
+        return ("<p>Scaling benchmark not run yet. Run <code>clusterctl bench</code> to time Word Count on "
+                "1, 2 and 3 workers for several input sizes.</p>")
+    ks = scaling.worker_counts(bench)
+    ok = scaling.all_correct(bench)
+    verdict = ("<div class='verdict good'>✓ Every run matched the single-machine count</div>" if ok else
+               "<div class='verdict'>Correctness not checked against a single-machine reference.</div>"
+               if ok is None else "<div class='verdict bad'>✗ Some runs differed from the single-machine count "
+               f"(input sizes: {e(', '.join(scaling.failed_sizes(bench)))} MB)</div>")
+    head = "".join(f"<th>{e(k)} worker{'s' if k != 1 else ''}</th>" for k in ks)
+    rows = []
+    for size in scaling.sizes(bench):
+        cells = []
+        for k in ks:
+            r = scaling.row(bench, size, k)
+            cells.append("<td>–</td>" if r is None else
+                         f"<td><b>{float(r['median_s']):.1f} s</b><br><small>{float(r['speedup']):.2f}× · "
+                         f"{round(100 * float(r['efficiency']))}% · {float(r['throughput_mb_s']):.1f} MB/s</small></td>")
+        rows.append(f"<tr><td><b>{e(size)} MB</b></td>{''.join(cells)}</tr>")
+    return (f"<p class='lead'>{e(scaling.interpretation(bench))}</p>" + verdict
+            + "<h3>Speedup vs workers</h3>" + _speedup_chart(bench)
+            + "<h3>Median time · speedup · efficiency · throughput</h3>"
+            f"<table class='sc-table'><thead><tr><th>Input</th>{head}</tr></thead><tbody>{''.join(rows)}</tbody>"
+            f"</table><p class='note'>Run {e(bench.get('stamp', '?'))}: {e(bench.get('repeats', '?'))} repeat(s) "
+            f"per cell (median shown), {e(bench.get('cores_per_worker', '?'))} cores per worker. Speedup = time on "
+            "1 worker ÷ time on k workers; efficiency = speedup ÷ k. Small inputs scale poorly because Spark's "
+            "fixed start-up cost (JVMs, scheduling) is a large share of a short job.</p>")
+
+
 def _jobs(history: dict) -> str:
     apps = history.get("apps", [])
     if not apps:
@@ -217,9 +293,10 @@ def build_html(ctx: Context) -> str:
         ("topology", "2. Topology", _topology(ctx)),
         ("nodes", "3. Physical machines", _nodes(nodes)),
         ("wordcount", "4. Word Count on the cluster", _wordcount((index["wordcount"] or [None])[0])),
-        ("recovery", "5. Failure recovery", _demo((index["demos"] or [None])[0])),
-        ("history", "6. Applications run on the cluster", _jobs(history)),
-        ("setup", "7. Setup proof", _setup(ctx, conf)),
+        ("scaling", "5. Scaling benchmark", _scaling((index["bench"] or [None])[0])),
+        ("recovery", "6. Failure recovery", _demo((index["demos"] or [None])[0])),
+        ("history", "7. Applications run on the cluster", _jobs(history)),
+        ("setup", "8. Setup proof", _setup(ctx, conf)),
     ]
     body = "".join(f"<section id='{sid}'><h2>{e(title)}</h2>{html}</section>" for sid, title, html in sections)
     return ("<!doctype html><html lang='en'><head><meta charset='utf-8'>"

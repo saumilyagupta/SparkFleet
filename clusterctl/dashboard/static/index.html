@@ -9,6 +9,7 @@
   <script src="/static/app.js" defer></script>
   <script src="/static/evidence.js" defer></script>
   <script src="/static/advanced.js" defer></script>
+  <script src="/static/scaling.js" defer></script>
 </head>
 <body>
   <div id="banner" class="banner" role="alert" hidden></div>
@@ -87,6 +88,14 @@
         to watch the worker disappear and return.
       </p>
       <div id="ev-fail"></div>
+    </section>
+
+    <section class="panel span-full" aria-labelledby="h-scale">
+      <div class="panel-head">
+        <h2 id="h-scale">Scaling benchmark</h2>
+        <span id="sc-badge"></span>
+      </div>
+      <div id="sc-body"></div>
     </section>
 
     <section class="panel span-main" aria-labelledby="h-jobhist">
