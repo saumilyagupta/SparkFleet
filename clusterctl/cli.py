@@ -279,6 +279,27 @@ def cmd_evidence(paths: ProjectPaths, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_monitor(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.monitor import Sampler
+
+    sampler = Sampler(make_context(paths)).start()
+    print("live load every 3 s; Ctrl+C to stop")
+    try:
+        while True:
+            time.sleep(sampler.interval_s)
+            rows = []
+            for n in sampler.snapshot()["nodes"]:
+                p = n["latest"] or {}
+                cpu = "-" if p.get("cpu") is None else f"{p['cpu']:5.1f}%"
+                mem = "-" if p.get("mem") is None else f"{p['mem']:5.1f}%"
+                rows.append(f"  {n['name']:<11} {n['role']:<7} cpu {cpu:>7}  mem {mem:>7}  "
+                            f"load {p.get('load', '-')!s:<5} spark cores {p.get('spark_cores', 0):>3}  {n['status'][:40]}")
+            print(time.strftime("%H:%M:%S"), *rows, sep="\n", flush=True)
+    except KeyboardInterrupt:
+        sampler.stop()
+        return 0
+
+
 def cmd_tunnel(paths: ProjectPaths, args: argparse.Namespace) -> int:
     from clusterctl.tunnel import open_tunnels
 
@@ -378,6 +399,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("facts", help="hardware/OS facts per node (physical-machine proof)")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=cmd_facts)
+    sub.add_parser("monitor", help="live CPU/memory/Spark cores per node").set_defaults(fn=cmd_monitor)
     sub.add_parser("history", help="applications the master has run").set_defaults(fn=cmd_history)
     sub.add_parser("evidence", help="write an offline HTML evidence report to results/").set_defaults(fn=cmd_evidence)
 

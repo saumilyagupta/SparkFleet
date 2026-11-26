@@ -38,6 +38,9 @@ class DashboardState:
         self.tunnels: list = []
         self._vault: Vault | None = None
         self._lock = threading.Lock()
+        self._sampler = None
+        self._sampler_lock = threading.Lock()
+        self.sampler_factory: Callable[[Context], object] | None = None
 
     @property
     def vault(self) -> Vault | None:
@@ -62,6 +65,23 @@ class DashboardState:
     def context(self, *, need_vault: bool = False) -> Context:
         vault = self.require_vault() if need_vault else self.vault
         return Context.build(self.paths, inv.load(self.paths.inventory), QueueReporter(), vault)
+
+    def sampler(self):
+        """Live-load sampler, started on first use and kept for the dashboard's lifetime."""
+        if self._sampler is not None:
+            return self._sampler
+        # Build the context BEFORE taking the lock: context() reads self.vault, which takes
+        # the same (non-reentrant) lock.
+        ctx = self.context()
+        with self._sampler_lock:
+            if self._sampler is None:
+                if self.sampler_factory is not None:
+                    self._sampler = self.sampler_factory(ctx)
+                else:
+                    from clusterctl.monitor import Sampler
+
+                    self._sampler = Sampler(ctx).start()
+            return self._sampler
 
     def registry(self) -> KeyRegistry:
         return KeyRegistry(self.paths.key_registry, self.paths.audit_log)

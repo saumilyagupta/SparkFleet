@@ -45,6 +45,13 @@ def evidence_api_routes(r: APIRouter, st: DashboardState) -> None:
         return {**index, "wordcount": index["wordcount"][:MAX_LISTED],
                 "demos": index["demos"][:MAX_LISTED]}
 
+    @r.get("/monitor")
+    def get_monitor() -> dict:
+        try:
+            return st.sampler().snapshot()
+        except Exception as exc:  # noqa: BLE001 - e.g. inventory missing or key not bootstrapped
+            raise HTTPException(502, f"monitor failed: {exc}") from None
+
     @r.get("/evidence/jobs")
     async def get_jobs() -> dict:
         ctx = st.context()

@@ -169,3 +169,25 @@ def test_evidence_action_runs_fake_generator(client, paths, monkeypatch):
 
 def test_evidence_action_rejects_params(client):
     assert client.post("/api/actions/evidence", json={"x": 1}, headers=AUTH).status_code == 422
+
+
+class _FakeSampler:
+    def __init__(self, ctx) -> None:
+        self.ctx = ctx
+
+    def snapshot(self) -> dict:
+        return {"interval_s": 3, "nodes": [{"name": "m", "status": "up", "latest": {"cpu": 5.0}, "series": []}]}
+
+
+def test_monitor_route_returns_snapshot_without_deadlock(client):
+    # Regression: sampler() used to take the state lock and then call context(), which takes
+    # the same lock again -> the request hung forever. A timeout-free return proves the fix.
+    client.app.state.dashboard.sampler_factory = _FakeSampler
+    resp = client.get("/api/monitor", headers={"X-Token": TOKEN})
+
+    assert resp.status_code == 200
+    assert resp.json()["nodes"][0]["latest"]["cpu"] == 5.0
+
+
+def test_monitor_route_requires_token(client):
+    assert client.get("/api/monitor").status_code == 401

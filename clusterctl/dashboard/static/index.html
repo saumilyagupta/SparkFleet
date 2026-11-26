@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
   <script src="/static/evidence.js" defer></script>
+  <script src="/static/advanced.js" defer></script>
 </head>
 <body>
   <div id="banner" class="banner" role="alert" hidden></div>
@@ -43,6 +44,14 @@
         <span class="muted small">live from the Spark master + hardware facts from each node</span>
       </div>
       <div id="ev-glance" class="glance" aria-live="polite"></div>
+    </section>
+
+    <section class="panel span-full" aria-labelledby="h-load">
+      <div class="panel-head">
+        <h2 id="h-load">Live load</h2>
+        <span class="muted mono small">CPU % per machine, sampled every 3 s · amber = cores Spark is using right now</span>
+      </div>
+      <div id="adv-load" class="load-grid" aria-live="off"></div>
     </section>
 
     <section class="panel span-full" aria-labelledby="h-nodes">
