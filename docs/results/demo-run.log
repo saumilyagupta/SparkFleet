@@ -1,0 +1,50 @@
+master ALIVE, 3/3 workers ALIVE (72 cores, 43932 MB)
+[demo] baseline: clean run on 3 workers / 72 cores
+[system-01] $ /opt/spark/bin/spark-submit --master spark://172.22.68.221:7077 --name WordCount-baseline-20261126-180441 /opt/spark-data/jobs/wordcount.py --input file:///opt/spark-data/input/corpus.txt --output /opt/spark-data/output/baseline-20261126-180441.tsv --partitions 288 --top 20 --delay-ms 0 --app-name WordCount-baseline-20261126-180441
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor added: app-20261126180443-0001/0 on worker-20261126175706-172.22.68.218-46853 (172.22.68.218:46853) with 24 core(s)
+[system-01] 26/11/26 18:04:43 INFO StandaloneSchedulerBackend: Granted executor ID app-20261126180443-0001/0 on hostPort 172.22.68.218:46853 with 24 core(s), 1024.0 MiB RAM
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor added: app-20261126180443-0001/1 on worker-20261126175707-172.22.68.217-36887 (172.22.68.217:36887) with 24 core(s)
+[system-01] 26/11/26 18:04:43 INFO StandaloneSchedulerBackend: Granted executor ID app-20261126180443-0001/1 on hostPort 172.22.68.217:36887 with 24 core(s), 1024.0 MiB RAM
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor added: app-20261126180443-0001/2 on worker-20261126175706-172.22.68.216-40311 (172.22.68.216:40311) with 24 core(s)
+[system-01] 26/11/26 18:04:43 INFO StandaloneSchedulerBackend: Granted executor ID app-20261126180443-0001/2 on hostPort 172.22.68.216:40311 with 24 core(s), 1024.0 MiB RAM
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261126180443-0001/0 is now RUNNING
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261126180443-0001/2 is now RUNNING
+[system-01] 26/11/26 18:04:43 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261126180443-0001/1 is now RUNNING
+[system-01] WORDCOUNT_DONE app_id=app-20261126180443-0001 driver=cselab2pc36
+[system-01] input=file:///opt/spark-data/input/corpus.txt partitions=288 executors=3
+[system-01] total_words=25327776 distinct_words=99 elapsed_s=9.1
+[system-01] output=/opt/spark-data/output/baseline-20261126-180441.tsv
+[system-01] top 20:
+[system-01]      4893021  the
+[system-01]      2448671  of
+[system-01]      1630966  and
+[system-01]      1222605  to
+[system-01]       978175  in
+[system-01]       815152  a
+[system-01]       698275  is
+[system-01]       611424  that
+[system-01]       544668  for
+[system-01]       490205  it
+[system-01]       444116  as
+[system-01]       407945  was
+[system-01]       376392  with
+[system-01]       349499  be
+[system-01]       325813  by
+[system-01]       306848  on
+[system-01]       286774  not
+[system-01]       271998  he
+[system-01]       256198  i
+[system-01]       244607  this
+result saved to C:\Users\saumi\Desktop\IBD\results\baseline-20261126-180441.tsv
+[demo] job started (pid 18297, 288 partitions, 12000 ms/partition)
+[demo] tasks running on system-02; injecting failure
+[demo] stopped spark-worker (worker JVM + its executors) on system-02 (172.22.68.216)
+[demo] master reports system-02 no longer ALIVE; job continues on survivors
+[demo] job finished despite the failure
+[demo] result identical to baseline: True
+[demo] restarted spark-worker on system-02
+waiting for workers: 172.22.68.216
+master ALIVE, 3/3 workers ALIVE (72 cores, 43932 MB)
+[demo] system-02 re-registered with the master
+demo report: C:\Users\saumi\Desktop\IBD\results\demo-20261126-180441.md
+EXIT 0

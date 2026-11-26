@@ -1,0 +1,184 @@
+{
+  "scenario": "shuffle",
+  "stamp": "20261127-022456",
+  "input": "corpus.txt",
+  "mode": "shuffle",
+  "victim": {
+    "name": "system-02",
+    "ip": "172.22.68.216"
+  },
+  "affected": [
+    {
+      "name": "system-02",
+      "ip": "172.22.68.216"
+    }
+  ],
+  "partitions": 144,
+  "delay_ms": 0,
+  "reduce_delay_ms": 4000,
+  "identical": true,
+  "baseline": {
+    "file": "single-machine reference",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "recovered": {
+    "file": "shuffle-20261127-022456.tsv (on master)",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "timeline": [
+    {
+      "t": 0.0,
+      "event": "scenario 'shuffle': 3 workers / 72 cores, input corpus.txt, 144 partitions"
+    },
+    {
+      "t": 0.4,
+      "event": "job started (pid 46391)"
+    },
+    {
+      "t": 16.7,
+      "event": "map stage done, reduce stage 1 reading shuffle data; killing system-02"
+    },
+    {
+      "t": 17.4,
+      "event": "stopped spark-worker on system-02: its map outputs are now lost"
+    },
+    {
+      "t": 51.3,
+      "event": "job finished despite the fault"
+    },
+    {
+      "t": 51.7,
+      "event": "restarted spark-worker on system-02"
+    },
+    {
+      "t": 57.1,
+      "event": "all workers ALIVE again"
+    },
+    {
+      "t": 57.1,
+      "event": "result identical to single-machine count: True"
+    }
+  ],
+  "lost_executors": [
+    {
+      "id": "2",
+      "ip": "172.22.68.216",
+      "reason": "Command exited with code 143"
+    }
+  ],
+  "lost_tasks": 23,
+  "retried_tasks": 19,
+  "executors": [
+    {
+      "id": "app-20261127022458-0040/0",
+      "ip": "172.22.68.218",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/1",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/2",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/3",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/4",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/5",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127022458-0040/6",
+      "ip": "172.22.68.216",
+      "cores": 24
+    }
+  ],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 6.036
+    },
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 1.283
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 4.198
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 12.723
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 12.681
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 0.548
+    }
+  ],
+  "summary": {
+    "app_id": "app-20261127022458-0040",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus.txt",
+    "partitions": 144,
+    "executors": 2,
+    "total_words": 25327776,
+    "distinct_words": 99,
+    "elapsed_s": 46.8,
+    "output": "/opt/spark-data/output/shuffle-20261127-022456.tsv"
+  },
+  "fetch_failed": 14,
+  "lost_map_outputs": 1,
+  "resubmitted": [
+    "Resubmitting ShuffleMapStage 0"
+  ],
+  "resubmit_count": 1,
+  "speculatable": 0,
+  "speculative_wins": 0,
+  "key_log_lines": [
+    "26/11/27 02:25:05 INFO DAGScheduler: ShuffleMapStage 0 (reduceByKey at /opt/spark-data/jobs/wordcount.py:66) finished in 6.036 s",
+    "26/11/27 02:25:13 INFO TaskSetManager: Starting task 125.1 in stage 1.0 (TID 288) (172.22.68.218, executor 0, partition 125, NODE_LOCAL, 8821 bytes)",
+    "26/11/27 02:25:13 WARN TaskSetManager: Lost task 74.0 in stage 1.0 (TID 253) (172.22.68.216 executor 2): ExecutorLostFailure (executor 2 exited caused by one of the running tasks) Reason: Command exited with code 143",
+    "26/11/27 02:25:13 INFO TaskSetManager: Starting task 134.1 in stage 1.0 (TID 290) (172.22.68.218, executor 0, partition 134, NODE_LOCAL, 8821 bytes)",
+    "26/11/27 02:25:13 WARN TaskSetManager: Lost task 137.0 in stage 1.0 (TID 244) (172.22.68.216 executor 2): ExecutorLostFailure (executor 2 exited caused by one of the running tasks) Reason: Command exited with code 143",
+    "26/11/27 02:25:13 INFO DAGScheduler: Executor lost: 2 (epoch 1)",
+    "26/11/27 02:25:13 INFO TaskSetManager: Starting task 141.1 in stage 1.0 (TID 289) (172.22.68.218, executor 0, partition 141, NODE_LOCAL, 8821 bytes)",
+    "26/11/27 02:25:13 ERROR TaskSchedulerImpl: Lost executor 2 on 172.22.68.216: Command exited with code 143",
+    "26/11/27 02:25:14 WARN TaskSetManager: Lost task 141.1 in stage 1.0 (TID 289) (172.22.68.218 executor 0): FetchFailed(BlockManagerId(2, 172.22.68.216, 7079, None), shuffleId=0, mapIndex=24, mapId=24, reduceId=141, message=",
+    "26/11/27 02:25:14 WARN TaskSetManager: Lost task 125.1 in stage 1.0 (TID 288) (172.22.68.218 executor 0): FetchFailed(BlockManagerId(2, 172.22.68.216, 7079, None), shuffleId=0, mapIndex=24, mapId=24, reduceId=125, message=",
+    "26/11/27 02:25:14 WARN TaskSetManager: Lost task 137.1 in stage 1.0 (TID 291) (172.22.68.218 executor 0): FetchFailed(BlockManagerId(2, 172.22.68.216, 7079, None), shuffleId=0, mapIndex=24, mapId=24, reduceId=137, message=",
+    "26/11/27 02:25:14 WARN TaskSetManager: Lost task 134.1 in stage 1.0 (TID 290) (172.22.68.218 executor 0): FetchFailed(BlockManagerId(2, 172.22.68.216, 7079, None), shuffleId=0, mapIndex=24, mapId=24, reduceId=134, message=",
+    "26/11/27 02:25:14 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261127022458-0040/6 is now LOST (worker lost: 172.22.68.216:40405 got disassociated)",
+    "26/11/27 02:25:14 INFO StandaloneSchedulerBackend: Executor app-20261127022458-0040/6 removed: worker lost: 172.22.68.216:40405 got disassociated",
+    "26/11/27 02:25:17 INFO TaskSetManager: Finished task 87.1 in stage 1.0 (TID 299) in 4065 ms on 172.22.68.218 (executor 0) (130/144)",
+    "26/11/27 02:25:17 INFO TaskSetManager: Finished task 126.1 in stage 1.0 (TID 304) in 4065 ms on 172.22.68.218 (executor 0) (131/144)",
+    "26/11/27 02:25:19 INFO DAGScheduler: Job 0 finished: sortBy at /opt/spark-data/jobs/wordcount.py:71, took 20.550171 s",
+    "WORDCOUNT_DONE app_id=app-20261127022458-0040 driver=cselab2pc36",
+    "at org.apache.spark.storage.ShuffleBlockFetcherIterator.throwFetchFailedException(ShuffleBlockFetcherIterator.scala:1239)",
+    "org.apache.spark.shuffle.FetchFailedException",
+    "total_words=25327776 distinct_words=99 elapsed_s=46.8"
+  ],
+  "report_file": "demo-shuffle-20261127-022456.md",
+  "log_file": "demo-shuffle-20261127-022456.log"
+}

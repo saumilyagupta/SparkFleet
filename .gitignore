@@ -23,7 +23,7 @@ inventory.tmp
 
 # Generated / large
 cache/
-results/
+/results/
 *.tgz
 corpus*.txt
 

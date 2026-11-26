@@ -1,0 +1,70 @@
+{
+  "stamp": "20261127-015952",
+  "cores_per_worker": 24,
+  "worker_counts": [
+    1,
+    2,
+    3
+  ],
+  "repeats": 1,
+  "inputs": [
+    {
+      "name": "corpus-100mb.txt",
+      "size_mb": 100,
+      "sha256": "0ae576443ba84400ef702d38646c3063655ced013923be01ab3d2bce0234dc1b",
+      "reference_sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    }
+  ],
+  "runs": [
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 9.1,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 10.0,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 8.6,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    }
+  ],
+  "table": [
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "median_s": 9.1,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "throughput_mb_s": 11.0
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "median_s": 10.0,
+      "speedup": 0.91,
+      "efficiency": 0.45,
+      "throughput_mb_s": 10.0
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "median_s": 8.6,
+      "speedup": 1.06,
+      "efficiency": 0.35,
+      "throughput_mb_s": 11.6
+    }
+  ],
+  "correct_vs_reference": {
+    "100": true
+  }
+}

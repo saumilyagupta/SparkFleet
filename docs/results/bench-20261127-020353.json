@@ -1,0 +1,394 @@
+{
+  "stamp": "20261127-020353",
+  "cores_per_worker": 24,
+  "worker_counts": [
+    1,
+    2,
+    3
+  ],
+  "repeats": 3,
+  "inputs": [
+    {
+      "name": "corpus-100mb.txt",
+      "size_mb": 100,
+      "sha256": "0ae576443ba84400ef702d38646c3063655ced013923be01ab3d2bce0234dc1b",
+      "reference_sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "name": "corpus-500mb.txt",
+      "size_mb": 500,
+      "sha256": "a2a531dbffdc12859e43c6f5965efb226d5a8d046c2d0a1afce221d5455d51b8",
+      "reference_sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "name": "corpus-1000mb.txt",
+      "size_mb": 1000,
+      "sha256": "6f778a568723d78503a022e0b9c30e833e74e9bac088a097b8e5d5c0a83fae37",
+      "reference_sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "name": "corpus-2000mb.txt",
+      "size_mb": 2000,
+      "sha256": "a68ba2c3714b07b065cd80f94181e79121747c2d981d2320156391039382c553",
+      "reference_sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    }
+  ],
+  "runs": [
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 9.1,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 9.0,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 9.1,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 10.0,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 9.9,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 10.1,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 8.7,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 8.5,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 8.7,
+      "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+    },
+    {
+      "size_mb": 500,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 13.1,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 13.2,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 13.9,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 12.2,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 12.0,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 12.2,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 9.7,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 9.6,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 500,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 9.7,
+      "sha256": "2239f400dcf381b15760f59a57209bed1e8dc2a0a9e81219017eb2628d6ef9c8"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 20.7,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 22.7,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 22.5,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 17.5,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 17.4,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 18.0,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 11.0,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 11.1,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 1000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 11.2,
+      "sha256": "b40e56ca0f794a1d26de5fcf0fa7e30373082a65c3525a816ef519120271955b"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 38.3,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 39.2,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 1,
+      "cores": 24,
+      "seconds": 39.0,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 28.8,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 28.1,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 2,
+      "cores": 48,
+      "seconds": 27.6,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 17.1,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 16.9,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    },
+    {
+      "size_mb": 2000,
+      "workers": 3,
+      "cores": 72,
+      "seconds": 17.1,
+      "sha256": "9fceed40f60c6399510cdd7bf976f194dc5fd0ba0bfa283a960d4722d7ec7916"
+    }
+  ],
+  "table": [
+    {
+      "size_mb": 100,
+      "workers": 1,
+      "median_s": 9.1,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "throughput_mb_s": 11.0
+    },
+    {
+      "size_mb": 100,
+      "workers": 2,
+      "median_s": 10.0,
+      "speedup": 0.91,
+      "efficiency": 0.45,
+      "throughput_mb_s": 10.0
+    },
+    {
+      "size_mb": 100,
+      "workers": 3,
+      "median_s": 8.7,
+      "speedup": 1.05,
+      "efficiency": 0.35,
+      "throughput_mb_s": 11.5
+    },
+    {
+      "size_mb": 500,
+      "workers": 1,
+      "median_s": 13.2,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "throughput_mb_s": 37.9
+    },
+    {
+      "size_mb": 500,
+      "workers": 2,
+      "median_s": 12.2,
+      "speedup": 1.08,
+      "efficiency": 0.54,
+      "throughput_mb_s": 41.0
+    },
+    {
+      "size_mb": 500,
+      "workers": 3,
+      "median_s": 9.7,
+      "speedup": 1.36,
+      "efficiency": 0.45,
+      "throughput_mb_s": 51.5
+    },
+    {
+      "size_mb": 1000,
+      "workers": 1,
+      "median_s": 22.5,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "throughput_mb_s": 44.4
+    },
+    {
+      "size_mb": 1000,
+      "workers": 2,
+      "median_s": 17.5,
+      "speedup": 1.29,
+      "efficiency": 0.64,
+      "throughput_mb_s": 57.1
+    },
+    {
+      "size_mb": 1000,
+      "workers": 3,
+      "median_s": 11.1,
+      "speedup": 2.03,
+      "efficiency": 0.68,
+      "throughput_mb_s": 90.1
+    },
+    {
+      "size_mb": 2000,
+      "workers": 1,
+      "median_s": 39.0,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "throughput_mb_s": 51.3
+    },
+    {
+      "size_mb": 2000,
+      "workers": 2,
+      "median_s": 28.1,
+      "speedup": 1.39,
+      "efficiency": 0.69,
+      "throughput_mb_s": 71.2
+    },
+    {
+      "size_mb": 2000,
+      "workers": 3,
+      "median_s": 17.1,
+      "speedup": 2.28,
+      "efficiency": 0.76,
+      "throughput_mb_s": 117.0
+    }
+  ],
+  "correct_vs_reference": {
+    "100": true,
+    "500": true,
+    "1000": true,
+    "2000": true
+  }
+}
