@@ -39,23 +39,51 @@ def _remote_paths(ctx: Context, input_name: str, tag: str) -> tuple[str, str, st
     )
 
 
+def _remote_sha256(s: HostSession, path: str) -> str:
+    return s.run(f"sha256sum {shlex.quote(path)} 2>/dev/null | cut -d' ' -f1", check=False).out.strip()
+
+
 def push_data(ctx: Context, local_file: Path) -> str:
-    """Copy an input file to the same path on every node (no HDFS needed)."""
+    """Copy an input file to the same path on every node (no HDFS needed).
+
+    The laptop uploads once, to the master. The master then copies it to the
+    workers over the cluster LAN using its own node key (trusted on workers at
+    bootstrap). Any worker the master cannot reach gets a direct upload.
+    """
     if not local_file.is_file():
         raise WorkloadError(f"{local_file} not found")
     remote = posixpath.join(ctx.inventory.cluster.data_dir, "input", local_file.name)
     size_mb = local_file.stat().st_size / 1024 / 1024
     local_sha = hashlib.sha256(local_file.read_bytes()).hexdigest()
+    master = ctx.inventory.master
 
-    def push(host: Host) -> str:
-        with ctx.session(host) as s:
-            have = s.run(f"sha256sum {shlex.quote(remote)} 2>/dev/null | cut -d' ' -f1", check=False).out.strip()
-            if have == local_sha:
-                return f"{local_file.name} already present"
+    with ctx.session(master) as s:
+        if _remote_sha256(s, remote) != local_sha:
+            ctx.reporter.log(master.name, f"uploading {local_file.name} ({size_mb:.1f} MB)")
             s.put_file(local_file, remote)
-        return f"copied {local_file.name} ({size_mb:.1f} MB)"
+            if _remote_sha256(s, remote) != local_sha:
+                raise WorkloadError("upload to master failed checksum")
+        ctx.reporter.log(master.name, "data push: present on master", "ok")
 
-    results = run_parallel(ctx.inventory.hosts, push, ctx.reporter, "data push")
+    def fan_out(host: Host) -> str:
+        with ctx.session(host) as w:
+            if _remote_sha256(w, remote) == local_sha:
+                return f"{local_file.name} already present"
+        with ctx.session(master) as m:
+            q = shlex.quote(remote)
+            copied = m.run(f"scp -q -o BatchMode=yes -o ConnectTimeout=10 {q} "
+                           f"{shlex.quote(host.user)}@{shlex.quote(host.ip)}:{q}",
+                           check=False, timeout=3600).ok
+        with ctx.session(host) as w:
+            if copied and _remote_sha256(w, remote) == local_sha:
+                return f"copied from master over LAN ({size_mb:.1f} MB)"
+            w.put_file(local_file, remote)  # fallback: direct from laptop
+            if _remote_sha256(w, remote) != local_sha:
+                raise WorkloadError("checksum mismatch after upload")
+        return f"uploaded directly ({size_mb:.1f} MB)"
+
+    others = tuple(h for h in ctx.inventory.hosts if h != master)
+    results = run_parallel(others, fan_out, ctx.reporter, "data push")
     if not all_ok(results):
         raise WorkloadError(f"data push failed on: {', '.join(failed_names(results))}")
     return remote
