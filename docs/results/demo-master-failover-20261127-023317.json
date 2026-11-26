@@ -1,0 +1,136 @@
+{
+  "scenario": "master-failover",
+  "stamp": "20261127-023317",
+  "input": "corpus.txt",
+  "mode": "master-failover",
+  "victim": {
+    "name": "system-02",
+    "ip": "172.22.68.216"
+  },
+  "new_master": {
+    "name": "system-01",
+    "ip": "172.22.68.221"
+  },
+  "affected": [
+    {
+      "name": "system-02",
+      "ip": "172.22.68.216"
+    }
+  ],
+  "identical": true,
+  "baseline": {
+    "file": "single-machine reference",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "recovered": {
+    "file": "master-failover-20261127-023317.tsv (on master)",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "timeline": [
+    {
+      "t": 1.3,
+      "event": "masters: system-02=ALIVE (will be killed), system-01=STANDBY"
+    },
+    {
+      "t": 3.2,
+      "event": "job started with master URL spark://172.22.68.221:7077,172.22.68.216:7077 (pid 49989, 864 partitions)"
+    },
+    {
+      "t": 18.9,
+      "event": "stopped spark-master on system-02: the active master is DOWN"
+    },
+    {
+      "t": 52.2,
+      "event": "ZooKeeper elected system-01: standby master ALIVE after 33s; the job is still running"
+    },
+    {
+      "t": 144.4,
+      "event": "the running job finished under the new master"
+    },
+    {
+      "t": 156.8,
+      "event": "new application submitted after failover ran on system-01: result identical=True"
+    },
+    {
+      "t": 161.8,
+      "event": "system-02 restarted and rejoined as STANDBY"
+    },
+    {
+      "t": 161.8,
+      "event": "results identical to single-machine count: True"
+    }
+  ],
+  "lost_executors": [],
+  "lost_tasks": 0,
+  "retried_tasks": 0,
+  "executors": [
+    {
+      "id": "app-20261127023320-0000/0",
+      "ip": "172.22.68.218",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023320-0000/1",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023320-0000/2",
+      "ip": "172.22.68.217",
+      "cores": 24
+    }
+  ],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 127.569
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 2.574
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 2.162
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 2.074
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 1.686
+    }
+  ],
+  "summary": {
+    "app_id": "app-20261127023320-0000",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus.txt",
+    "partitions": 864,
+    "executors": 3,
+    "total_words": 25327776,
+    "distinct_words": 99,
+    "elapsed_s": 136.5,
+    "output": "/opt/spark-data/output/master-failover-20261127-023317.tsv"
+  },
+  "key_log_lines": [
+    "26/11/27 02:33:19 INFO SparkContext: Submitted application: WordCount-master-failover-20261127-023317",
+    "26/11/27 02:33:20 INFO StandaloneAppClient$ClientEndpoint: Connecting to master spark://172.22.68.216:7077...",
+    "26/11/27 02:33:20 INFO StandaloneAppClient$ClientEndpoint: Connecting to master spark://172.22.68.221:7077...",
+    "26/11/27 02:33:34 WARN StandaloneAppClient$ClientEndpoint: Connection to 172.22.68.216:7077 failed; waiting for master to reconnect...",
+    "26/11/27 02:33:34 WARN StandaloneAppClient$ClientEndpoint: Connection to 172.22.68.216:7077 failed; waiting for master to reconnect...",
+    "26/11/27 02:34:04 INFO StandaloneAppClient$ClientEndpoint: Master has changed, new master is at spark://172.22.68.221:7077",
+    "output=/opt/spark-data/output/master-failover-20261127-023317.tsv",
+    "26/11/27 02:35:28 INFO DAGScheduler: ShuffleMapStage 0 (reduceByKey at /opt/spark-data/jobs/wordcount.py:66) finished in 127.569 s",
+    "26/11/27 02:35:31 INFO DAGScheduler: Job 0 finished: sortBy at /opt/spark-data/jobs/wordcount.py:71, took 130.326803 s",
+    "WORDCOUNT_DONE app_id=app-20261127023320-0000 driver=cselab2pc36",
+    "total_words=25327776 distinct_words=99 elapsed_s=136.5"
+  ],
+  "report_file": "demo-master-failover-20261127-023317.md",
+  "log_file": "demo-master-failover-20261127-023317.log"
+}

@@ -1,0 +1,146 @@
+{
+  "stamp": "20261127-023625",
+  "input": "corpus.txt",
+  "mode": "worker",
+  "victim": {
+    "name": "system-02",
+    "ip": "172.22.68.216"
+  },
+  "partitions": 288,
+  "delay_ms": 12000,
+  "identical": true,
+  "baseline": {
+    "file": "baseline-20261127-023625.tsv",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "recovered": {
+    "file": "failure-20261127-023625.tsv",
+    "sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce"
+  },
+  "timeline": [
+    {
+      "t": 0.6,
+      "event": "baseline: clean run on 3 workers / 72 cores"
+    },
+    {
+      "t": 13.8,
+      "event": "job started (pid 52043, 288 partitions, 12000 ms/partition)"
+    },
+    {
+      "t": 16.7,
+      "event": "tasks running on system-02; injecting failure"
+    },
+    {
+      "t": 17.4,
+      "event": "stopped spark-worker (worker JVM + its executors) on system-02 (172.22.68.216)"
+    },
+    {
+      "t": 20.8,
+      "event": "master reports system-02 no longer ALIVE; job continues on survivors"
+    },
+    {
+      "t": 103.5,
+      "event": "job finished despite the failure"
+    },
+    {
+      "t": 103.5,
+      "event": "result identical to baseline: True"
+    },
+    {
+      "t": 103.8,
+      "event": "restarted spark-worker on system-02"
+    },
+    {
+      "t": 107.7,
+      "event": "system-02 re-registered with the master"
+    }
+  ],
+  "lost_executors": [
+    {
+      "id": "1",
+      "ip": "172.22.68.216",
+      "reason": "Command exited with code 143"
+    }
+  ],
+  "lost_tasks": 24,
+  "retried_tasks": 24,
+  "executors": [
+    {
+      "id": "app-20261127023640-0002/0",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023640-0002/1",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023640-0002/2",
+      "ip": "172.22.68.218",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023640-0002/3",
+      "ip": "172.22.68.216",
+      "cores": 24
+    }
+  ],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 78.751
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 1.819
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 1.32
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 1.25
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 0.997
+    }
+  ],
+  "summary": {
+    "app_id": "app-20261127023640-0002",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus.txt",
+    "partitions": 288,
+    "executors": 2,
+    "total_words": 25327776,
+    "distinct_words": 99,
+    "elapsed_s": 84.6,
+    "output": "/opt/spark-data/output/failure-20261127-023625.tsv"
+  },
+  "key_log_lines": [
+    "26/11/27 02:36:41 ERROR TaskSchedulerImpl: Lost executor 1 on 172.22.68.216: Command exited with code 143",
+    "26/11/27 02:36:41 WARN TaskSetManager: Lost task 41.0 in stage 0.0 (TID 41) (172.22.68.216 executor 1): ExecutorLostFailure (executor 1 exited caused by one of the running tasks) Reason: Command exited with code 143",
+    "26/11/27 02:36:41 WARN TaskSetManager: Lost task 32.0 in stage 0.0 (TID 32) (172.22.68.216 executor 1): ExecutorLostFailure (executor 1 exited caused by one of the running tasks) Reason: Command exited with code 143",
+    "26/11/27 02:36:41 INFO DAGScheduler: Executor lost: 1 (epoch 0)",
+    "26/11/27 02:36:42 INFO StandaloneAppClient$ClientEndpoint: Executor updated: app-20261127023640-0002/3 is now LOST (worker lost: 172.22.68.216:45721 got disassociated)",
+    "26/11/27 02:36:42 INFO StandaloneSchedulerBackend: Executor app-20261127023640-0002/3 removed: worker lost: 172.22.68.216:45721 got disassociated",
+    "26/11/27 02:36:42 INFO TaskSetManager: Starting task 24.1 in stage 0.0 (TID 48) (172.22.68.217, executor 0, partition 24, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:36:42 INFO TaskSetManager: Starting task 33.1 in stage 0.0 (TID 49) (172.22.68.217, executor 0, partition 33, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:36:42 INFO TaskSetManager: Starting task 42.1 in stage 0.0 (TID 50) (172.22.68.217, executor 0, partition 42, PROCESS_LOCAL, 9045 bytes)",
+    "26/11/27 02:36:57 INFO TaskSetManager: Finished task 24.1 in stage 0.0 (TID 48) in 14786 ms on 172.22.68.217 (executor 0) (25/288)",
+    "26/11/27 02:36:57 INFO TaskSetManager: Finished task 44.1 in stage 0.0 (TID 69) in 14779 ms on 172.22.68.217 (executor 0) (26/288)",
+    "26/11/27 02:37:59 INFO DAGScheduler: ShuffleMapStage 0 (reduceByKey at /opt/spark-data/jobs/wordcount.py:66) finished in 78.751 s",
+    "26/11/27 02:38:01 INFO DAGScheduler: Job 0 finished: sortBy at /opt/spark-data/jobs/wordcount.py:71, took 80.764854 s",
+    "WORDCOUNT_DONE app_id=app-20261127023640-0002 driver=cselab2pc36",
+    "total_words=25327776 distinct_words=99 elapsed_s=84.6"
+  ],
+  "report_file": "demo-20261127-023625.md",
+  "log_file": "demo-20261127-023625.log"
+}

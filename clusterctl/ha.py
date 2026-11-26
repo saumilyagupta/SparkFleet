@@ -135,12 +135,16 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
     inv = ctx.inventory
     if not inv.cluster.ha_enabled or not inv.standbys:
         raise WorkloadError("master HA is not enabled (cluster.ha_enabled: true + provision first)")
-    primary, standby = inv.master, inv.standbys[0]
     tl = DemoTimeline()
     states = {m["name"]: m["status"] for m in master_states(ctx)}
-    if states.get(primary.name) != "ALIVE":
-        raise WorkloadError(f"primary master must be ALIVE before the demo (now: {states})")
-    tl.add(ctx, f"masters: {primary.name}={states.get(primary.name)}, {standby.name}={states.get(standby.name)}")
+    alive = [h for h in inv.masters if states.get(h.name) == "ALIVE"]
+    waiting = [h for h in inv.masters if states.get(h.name) == "STANDBY"]
+    if len(alive) != 1 or not waiting:
+        raise WorkloadError(f"need one ALIVE and one STANDBY master before the demo (now: {states})")
+    # Kill whichever master ZooKeeper elected; the other one must take over. (Names kept from
+    # the original API: 'primary' = the master we kill, 'standby' = the one that takes over.)
+    primary, standby = alive[0], waiting[0]
+    tl.add(ctx, f"masters: {primary.name}=ALIVE (will be killed), {standby.name}=STANDBY")
     reference = reference_counts(ctx.paths, input_name)
     if reference is None:
         raise WorkloadError(f"{input_name} must exist locally for the reference count")
@@ -154,7 +158,7 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
     partitions, delay_ms = 12 * cores, 10_000
     stopped_primary = False
     try:
-        with ctx.session(primary) as s:
+        with ctx.session(inv.master) as s:  # driver always on system-01
             _upload_job(ctx, s)
             cmd = submit_command(ctx, input_name, tag, partitions=partitions, delay_ms=delay_ms)
             pid = s.run(f"setsid nohup {cmd} > {shlex.quote(log_path)} 2>&1 < /dev/null & echo $!").out.strip()
@@ -163,7 +167,7 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
             stopped_primary = True
             with ctx.session(primary, need_sudo=True) as p:
                 p.sudo("systemctl stop spark-master")
-            tl.add(ctx, f"stopped spark-master on {primary.name}: the primary master is DOWN", "warn")
+            tl.add(ctx, f"stopped spark-master on {primary.name}: the active master is DOWN", "warn")
             took = _wait_status(ctx, standby, "ALIVE", FAILOVER_TIMEOUT_S)
             running = s.run(f"kill -0 {shlex.quote(pid)}", check=False).ok
             tl.add(ctx, f"ZooKeeper elected {standby.name}: standby master ALIVE after {took:.0f}s"
@@ -177,7 +181,7 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
                 time.sleep(3)
             log_text = s.read_text(log_path)
             if "WORDCOUNT_DONE" not in log_text:
-                raise WorkloadError(f"job did not finish; see {log_path} on {primary.name}")
+                raise WorkloadError(f"job did not finish; see {log_path} on {inv.master.name}")
             _, _, remote_output = _remote_paths(ctx, input_name, tag)
             result_sha = _remote_sha256(s, remote_output)
             if running:
@@ -224,7 +228,7 @@ def _save(ctx: Context, stamp: str, tag: str, primary: Host, standby: Host, tl: 
     write_json(ctx.paths.results_dir / f"{base}.json", data)
     rows = "\n".join(f"| +{t['t']:6.1f}s | {t['event']} |" for t in data["timeline"])
     (ctx.paths.results_dir / f"{base}.md").write_text(
-        f"# Master failover ({stamp})\n\n- Killed: primary master {primary.name}; new master: {standby.name}\n"
+        f"# Master failover ({stamp})\n\n- Killed: active master {primary.name}; new master: {standby.name}\n"
         f"- **Result identical: {data['identical']}**\n\n| time | event |\n|---|---|\n{rows}\n\n```\n"
         + "\n".join(data["key_log_lines"]) + "\n```\n", encoding="utf-8")
     ctx.reporter.log("-", f"failover report: results/{base}.md", "ok")
