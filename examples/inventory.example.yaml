@@ -1,0 +1,21 @@
+# clusterctl inventory: machines only, NO passwords (those live in secrets.vault).
+# Copy to ../inventory.yaml, or generate it with: python -m clusterctl init --systems systems.json
+cluster:
+  spark_version: 3.5.10
+  hadoop_profile: hadoop3
+  java_packages: [openjdk-17-jdk-headless, openjdk-21-jdk-headless, openjdk-11-jdk-headless]
+  python_bin: python3
+  install_dir: /opt
+  data_dir: /opt/spark-data
+  master_port: 7077
+  master_ui_port: 8080
+  worker_ui_port: 8081
+  driver_port: 7078
+  block_manager_port: 7079
+  master_runs_worker: false      # true = the master machine also runs a worker
+  jump_host: null                # ~/.ssh/config alias if nodes are only reachable via a bastion
+hosts:
+  - {name: system-01, ip: 192.168.1.10, user: student01, role: master}
+  - {name: system-02, ip: 192.168.1.11, user: student02, role: worker}
+  - {name: system-03, ip: 192.168.1.12, user: student03, role: worker, cores: 4, memory: 6g}
+  - {name: system-04, ip: 192.168.1.13, user: student04, role: worker}

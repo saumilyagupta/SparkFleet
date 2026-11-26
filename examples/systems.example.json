@@ -1,0 +1,29 @@
+{
+    "systems": [
+        {
+            "system": "System 01",
+            "ip_address": "192.168.1.10",
+            "username": "student01",
+            "password": "CHANGE-ME",
+            "role": "master"
+        },
+        {
+            "system": "System 02",
+            "ip_address": "192.168.1.11",
+            "username": "student02",
+            "password": "CHANGE-ME"
+        },
+        {
+            "system": "System 03",
+            "ip_address": "192.168.1.12",
+            "username": "student03",
+            "password": "CHANGE-ME"
+        },
+        {
+            "system": "System 04",
+            "ip_address": "192.168.1.13",
+            "username": "student04",
+            "password": "CHANGE-ME"
+        }
+    ]
+}
