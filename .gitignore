@@ -2,6 +2,7 @@
 systems.json
 *credentials*.json
 secrets.vault
+.vault-pass
 secrets.tmp
 *.vault
 keys/
