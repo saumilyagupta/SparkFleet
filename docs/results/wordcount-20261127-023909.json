@@ -1,0 +1,156 @@
+{
+  "tag": "wordcount-20261127-023909",
+  "input": "corpus.txt",
+  "started": "2026-11-27T02:39:10",
+  "result_file": "wordcount-20261127-023909.tsv",
+  "result_sha256": "12af4f834e0941eb82ec0da18d6ada472f7d0fb353c93781c4083fe6eb5a79ce",
+  "summary": {
+    "app_id": "app-20261127023911-0000",
+    "driver": "cselab2pc36",
+    "input": "file:///opt/spark-data/input/corpus.txt",
+    "partitions": 72,
+    "executors": 3,
+    "total_words": 25327776,
+    "distinct_words": 99,
+    "elapsed_s": 6.6,
+    "output": "/opt/spark-data/output/wordcount-20261127-023909.tsv"
+  },
+  "top": [
+    {
+      "word": "the",
+      "count": 4893021
+    },
+    {
+      "word": "of",
+      "count": 2448671
+    },
+    {
+      "word": "and",
+      "count": 1630966
+    },
+    {
+      "word": "to",
+      "count": 1222605
+    },
+    {
+      "word": "in",
+      "count": 978175
+    },
+    {
+      "word": "a",
+      "count": 815152
+    },
+    {
+      "word": "is",
+      "count": 698275
+    },
+    {
+      "word": "that",
+      "count": 611424
+    },
+    {
+      "word": "for",
+      "count": 544668
+    },
+    {
+      "word": "it",
+      "count": 490205
+    },
+    {
+      "word": "as",
+      "count": 444116
+    },
+    {
+      "word": "was",
+      "count": 407945
+    },
+    {
+      "word": "with",
+      "count": 376392
+    },
+    {
+      "word": "be",
+      "count": 349499
+    },
+    {
+      "word": "by",
+      "count": 325813
+    },
+    {
+      "word": "on",
+      "count": 306848
+    },
+    {
+      "word": "not",
+      "count": 286774
+    },
+    {
+      "word": "he",
+      "count": 271998
+    },
+    {
+      "word": "i",
+      "count": 256198
+    },
+    {
+      "word": "this",
+      "count": 244607
+    }
+  ],
+  "executors": [
+    {
+      "id": "app-20261127023911-0000/0",
+      "ip": "172.22.68.217",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023911-0000/1",
+      "ip": "172.22.68.216",
+      "cores": 24
+    },
+    {
+      "id": "app-20261127023911-0000/2",
+      "ip": "172.22.68.218",
+      "cores": 24
+    }
+  ],
+  "lost_executors": [],
+  "lost_tasks": 0,
+  "retried_tasks": 0,
+  "retries": [],
+  "stages": [
+    {
+      "stage": "ShuffleMapStage 0",
+      "op": "reduceByKey",
+      "seconds": 2.863
+    },
+    {
+      "stage": "ResultStage 1",
+      "op": "sortBy",
+      "seconds": 2.449
+    },
+    {
+      "stage": "ResultStage 3",
+      "op": "sortBy",
+      "seconds": 0.302
+    },
+    {
+      "stage": "ShuffleMapStage 5",
+      "op": "sortBy",
+      "seconds": 0.352
+    },
+    {
+      "stage": "ResultStage 6",
+      "op": "collect",
+      "seconds": 0.25
+    }
+  ],
+  "fetch_failed": 0,
+  "lost_map_outputs": 0,
+  "resubmitted": [],
+  "resubmit_count": 0,
+  "speculatable": 0,
+  "speculative_wins": 0,
+  "reference_file": "reference-corpus.txt-0ae576443ba8.tsv",
+  "matches_local_reference": true
+}

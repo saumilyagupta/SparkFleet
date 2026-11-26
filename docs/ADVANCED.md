@@ -43,7 +43,14 @@ These four extras go beyond the assignment. Each one answers a question an evalu
 
 **Results**
 
-BENCH_RESULTS_PLACEHOLDER
+Measured on 27 Nov 2026: 36 runs, all matching the single-machine count (`docs/results/bench-20261127-020353.json`):
+
+| Input | 1 worker | 2 workers | 3 workers | Speedup (3 w) | Efficiency |
+|-------|---------|-----------|-----------|---------------|-----------|
+| 100 MB | 9.1 s | 10.0 s | 8.7 s | 1.05× | 35% |
+| 500 MB | 13.2 s | 12.2 s | 9.7 s | 1.36× | 45% |
+| 1000 MB | 22.5 s | 17.5 s | 11.1 s | 2.03× | 68% |
+| 2000 MB | 39.0 s | 28.1 s | 17.1 s | **2.28×** | **76%** |
 
 **What to say**
 - **Amdahl's law:** *"A Spark job has a fixed cost: starting executors, scheduling, the shuffle and collecting results. That cost doesn't shrink when you add machines. On 100 MB the work is so small that the fixed cost dominates, so 3 machines are barely faster than 1. On 2 GB the parallel part dominates, so speedup approaches the ideal."*
@@ -68,7 +75,7 @@ Each scenario:
 
 **Proof:** the log contains `FetchFailed`, `Resubmitting ShuffleMapStage 0 … due to fetch failure` and `Resubmitted ShuffleMapTask`, and the result is identical.
 
-SHUFFLE_RESULTS_PLACEHOLDER
+**Measured:** system-02 was killed 0.7 s after the reduce stage began. That produced 14 `FetchFailed` lines, all for one lost map output, and 1 `Resubmitting ShuffleMapStage 0`. The job finished in 51 s with an identical result (`docs/results/demo-shuffle-20261127-022456.md`).
 
 **What to say:** *"Task retry isn't enough here, because the data the task needs is gone. Spark walks the lineage back across the stage boundary."*
 
@@ -83,7 +90,7 @@ SHUFFLE_RESULTS_PLACEHOLDER
 
 **Proof:** the log contains `Marking task … as speculatable` and `Killing attempt 0 … as the attempt 1 succeeded on …`.
 
-STRAGGLER_RESULTS_PLACEHOLDER
+**Measured:** on 2 GB split into 432 partitions, system-02 was throttled at +3.6 s. Spark marked **97 tasks as speculatable**, and **64 speculative copies won**. The job took 36.9 s, against 17.1 s on a healthy cluster. The result was identical, and the throttle was removed (`docs/results/demo-straggler-20261127-022619.md`). Its "lost tasks" count is the losing duplicate copies that Spark killed; they are not failures.
 
 **What to say:** *"Fault tolerance isn't only about crashes. A slow node, from a failing disk or a noisy neighbour, would hold the whole job back. Speculation hides it."*
 
@@ -91,7 +98,7 @@ STRAGGLER_RESULTS_PLACEHOLDER
 
 **What happens:** we kill one busy worker, then a second one 20 seconds later. The job finishes on the last machine alone, and the answer is identical. Afterwards both workers restart and rejoin.
 
-CASCADE_RESULTS_PLACEHOLDER
+**Measured:** system-02 was stopped at +5.7 s and system-03 at +28.8 s. There were 2 lost executors and 48 lost tasks. 48 completed map tasks were resubmitted because their outputs had died with the machines. The job finished on system-04 alone at +111 s, with an identical result (`docs/results/demo-cascade-20261127-022713.md`).
 
 ---
 
@@ -114,7 +121,7 @@ CASCADE_RESULTS_PLACEHOLDER
 
 `clusterctl ha` shows each master's role and each ZooKeeper node's mode (leader or follower).
 
-HA_RESULTS_PLACEHOLDER
+**Measured:** system-02 (ALIVE) was stopped at +18.9 s. ZooKeeper elected **system-01, which was ALIVE 33 s later while the job was still running**. The job finished under the new master at +144 s. A brand-new application then ran on it at +157 s. Both results were identical, and system-02 rejoined as STANDBY (`docs/results/demo-master-failover-20261127-023317.md`). The rollback was also tested: with HA off, provision removed ZooKeeper and the standby master, and Word Count stayed correct.
 
 **Reversibility:** set `ha_enabled: false` in `inventory.yaml` and run `clusterctl provision`. That removes ZooKeeper and the standby master from the machines, because provision deletes any managed service a host no longer needs.
 
