@@ -111,7 +111,7 @@ Show the dashboard's **Key registry** and **Audit log** panels.
 
 | Problem | What to do |
 |---------|------------|
-| Jump host or network is down | You can't run anything live. Show the pre-generated `results\evidence-*.html`, `results\demo-*.md` and `results\demo-*.log`, and the screenshots in `docs/`. Generate a fresh report **the day before** and keep a PDF copy |
+| Jump host or network is down | You can't run anything live. Show the recorded evidence in `docs/evidence/`. It is committed to the repo, so it also works from GitHub: `dashboard.png` (the live dashboard), `evidence-report.html` (open it in a browser), `failure-demo.md` and `failure-demo-driver.log`. Also generate a fresh report **the day before** and keep a PDF copy |
 | A worker is not ALIVE | Run `clusterctl start`, then `clusterctl status`. If a machine is powered off, the cluster still runs with the others. Explain this as fault tolerance |
 | The localhost:18080 tab shows something else | Another program took the port. Look at the port the `tunnel` terminal actually printed |
 | The localhost:14040 tab says "not available" | No job is running. Start Word Count or the demo first |
