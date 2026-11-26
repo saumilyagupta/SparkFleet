@@ -204,6 +204,7 @@ def render_values(inventory: Inventory, host: Host) -> dict[str, object]:
         "worker_ui_port": cfg.worker_ui_port, "driver_port": cfg.driver_port,
         "block_manager_port": cfg.block_manager_port,
         "worker_resources": "\n".join(resources),
+        "history_ui_port": cfg.history_ui_port,
     }
 
 
@@ -224,6 +225,8 @@ def services_for(inventory: Inventory, host: Host) -> tuple[str, ...]:
         names.append("spark-master")
     if host in inventory.workers:
         names.append("spark-worker")
+    if host.is_master and inventory.cluster.history_server:
+        names.append("spark-history")
     return tuple(names)
 
 

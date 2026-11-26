@@ -84,11 +84,11 @@ class TestPythonConsistency:
 
 class TestServicesFor:
     def test_master_only_runs_master(self, sample_inventory):
-        assert services_for(sample_inventory, sample_inventory.master) == ("spark-master",)
+        assert services_for(sample_inventory, sample_inventory.master) == ("spark-master", "spark-history")
 
     def test_worker_runs_worker(self, sample_inventory):
         assert services_for(sample_inventory, sample_inventory.get("w1")) == ("spark-worker",)
 
     def test_master_runs_worker_gets_both(self, sample_inventory):
         inv = Inventory(cluster=ClusterConfig(master_runs_worker=True), hosts=sample_inventory.hosts)
-        assert services_for(inv, inv.master) == ("spark-master", "spark-worker")
+        assert services_for(inv, inv.master) == ("spark-master", "spark-worker", "spark-history")

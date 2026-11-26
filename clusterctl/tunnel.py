@@ -55,6 +55,9 @@ def plan_forwards(ctx: Context) -> list[Forward]:
                 "This page only exists while a Spark job is running. Start one with "
                 "'python -m clusterctl run --input corpus.txt' or the failure demo, then refresh."),
     ]
+    if cfg.history_server:
+        forwards.append(Forward(19080, master.ip, cfg.history_ui_port, "History Server (finished jobs)",
+                                "Start it with: python -m clusterctl start --limit " + master.name))
     for i, worker in enumerate(ctx.inventory.workers):
         forwards.append(Forward(cfg.worker_ui_port + LOCAL_OFFSET + i, worker.ip, cfg.worker_ui_port,
                                 f"worker UI ({worker.name})"))

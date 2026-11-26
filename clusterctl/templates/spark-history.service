@@ -1,0 +1,19 @@
+[Unit]
+Description=Apache Spark History Server (managed by clusterctl)
+After=network-online.target spark-master.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{user}}
+Environment=SPARK_HOME={{spark_home}}
+Environment=SPARK_NO_DAEMONIZE=true
+# Serves the full Spark UI for finished applications from the event logs the driver writes.
+Environment="SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=file://{{data_dir}}/events -Dspark.history.ui.port={{history_ui_port}} -Dspark.history.fs.update.interval=5s"
+ExecStart={{spark_home}}/bin/spark-class org.apache.spark.deploy.history.HistoryServer
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

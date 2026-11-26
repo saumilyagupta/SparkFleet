@@ -65,6 +65,8 @@ class ClusterConfig:
     master_port: int = 7077
     master_ui_port: int = 8080
     worker_ui_port: int = 8081
+    history_ui_port: int = 18080
+    history_server: bool = True
     driver_port: int = 7078
     block_manager_port: int = 7079
     master_runs_worker: bool = False
@@ -90,6 +92,8 @@ class ClusterConfig:
             "master_port": self.master_port,
             "master_ui_port": self.master_ui_port,
             "worker_ui_port": self.worker_ui_port,
+            "history_ui_port": self.history_ui_port,
+            "history_server": self.history_server,
             "driver_port": self.driver_port,
             "block_manager_port": self.block_manager_port,
             "master_runs_worker": self.master_runs_worker,
