@@ -66,28 +66,41 @@ def push_data(ctx: Context, local_file: Path) -> str:
                 raise WorkloadError("upload to master failed checksum")
         ctx.reporter.log(master.name, "data push: present on master", "ok")
 
-    def fan_out(host: Host) -> str:
+    fan_out_from_master(ctx, remote, local_sha, fallback=local_file)
+    return remote
+
+
+def fan_out_from_master(ctx: Context, remote: str, sha: str, fallback: Path | None = None) -> None:
+    """Copy a file that already exists on the master to every other node over the LAN.
+
+    Uses the master's node key (trusted on workers at bootstrap). Every copy is
+    SHA-256 checked. If scp fails and a laptop copy exists, upload it directly.
+    """
+    master = ctx.inventory.master
+
+    def copy(host: Host) -> str:
         with ctx.session(host) as w:
-            if _remote_sha256(w, remote) == local_sha:
-                return f"{local_file.name} already present"
+            if _remote_sha256(w, remote) == sha:
+                return f"{posixpath.basename(remote)} already present"
         with ctx.session(master) as m:
             q = shlex.quote(remote)
             copied = m.run(f"scp -q -o BatchMode=yes -o ConnectTimeout=10 {q} "
                            f"{shlex.quote(host.user)}@{shlex.quote(host.ip)}:{q}",
                            check=False, timeout=3600).ok
         with ctx.session(host) as w:
-            if copied and _remote_sha256(w, remote) == local_sha:
-                return f"copied from master over LAN ({size_mb:.1f} MB)"
-            w.put_file(local_file, remote)  # fallback: direct from laptop
-            if _remote_sha256(w, remote) != local_sha:
+            if copied and _remote_sha256(w, remote) == sha:
+                return "copied from master over LAN"
+            if fallback is None:
+                raise WorkloadError("copy from master failed and no local copy to upload")
+            w.put_file(fallback, remote)  # fallback: direct from laptop
+            if _remote_sha256(w, remote) != sha:
                 raise WorkloadError("checksum mismatch after upload")
-        return f"uploaded directly ({size_mb:.1f} MB)"
+        return "uploaded directly from the laptop"
 
     others = tuple(h for h in ctx.inventory.hosts if h != master)
-    results = run_parallel(others, fan_out, ctx.reporter, "data push")
+    results = run_parallel(others, copy, ctx.reporter, "data push")
     if not all_ok(results):
         raise WorkloadError(f"data push failed on: {', '.join(failed_names(results))}")
-    return remote
 
 
 def _upload_job(ctx: Context, session: HostSession) -> str:
@@ -97,28 +110,33 @@ def _upload_job(ctx: Context, session: HostSession) -> str:
 
 
 def submit_command(ctx: Context, input_name: str, tag: str, *, partitions: int = 0,
-                   top: int = 20, delay_ms: int = 0) -> str:
+                   top: int = 20, delay_ms: int = 0, submit_opts: tuple[str, ...] = (),
+                   job_opts: tuple[str, ...] = ()) -> str:
+    """spark-submit command line. submit_opts go before the script (e.g. --conf, --total-executor-cores),
+    job_opts are extra wordcount.py arguments."""
     cfg = ctx.inventory.cluster
     job, remote_input, remote_output = _remote_paths(ctx, input_name, tag)
     master = f"spark://{ctx.inventory.master.ip}:{cfg.master_port}"
     args = [
         f"{cfg.spark_home}/bin/spark-submit", "--master", master, "--name", f"WordCount-{tag}",
-        job, "--input", f"file://{remote_input}", "--output", remote_output,
+        *submit_opts, job, "--input", f"file://{remote_input}", "--output", remote_output,
         "--partitions", str(partitions), "--top", str(top), "--delay-ms", str(delay_ms),
-        "--app-name", f"WordCount-{tag}",
+        "--app-name", f"WordCount-{tag}", *job_opts,
     ]
     return " ".join(shlex.quote(a) for a in args)
 
 
 def run_wordcount(ctx: Context, input_name: str, *, tag: str | None = None, partitions: int = 0,
-                  top: int = 20, delay_ms: int = 0) -> Path:
+                  top: int = 20, delay_ms: int = 0, submit_opts: tuple[str, ...] = (),
+                  job_opts: tuple[str, ...] = ()) -> Path:
     """Run Word Count with the driver on the master; stream its log; fetch the result."""
     tag = tag or f"wordcount-{datetime.now():%Y%m%d-%H%M%S}"
     _, _, remote_output = _remote_paths(ctx, input_name, tag)
     master = ctx.inventory.master
     with ctx.session(master) as s:
         _upload_job(ctx, s)
-        cmd = submit_command(ctx, input_name, tag, partitions=partitions, top=top, delay_ms=delay_ms)
+        cmd = submit_command(ctx, input_name, tag, partitions=partitions, top=top, delay_ms=delay_ms,
+                             submit_opts=submit_opts, job_opts=job_opts)
         ctx.reporter.log(master.name, f"$ {cmd}")
         captured: list[str] = []
         started = datetime.now()

@@ -227,7 +227,31 @@ def cmd_up(paths: ProjectPaths, args: argparse.Namespace) -> int:
 
 def cmd_data(paths: ProjectPaths, args: argparse.Namespace) -> int:
     ctx = make_context(paths)
-    print(workload.push_data(ctx, Path(args.file)))
+    if args.action == "push":
+        print(workload.push_data(ctx, Path(args.file)))
+    elif args.action == "generate":
+        from clusterctl.bench import generate_on_cluster
+
+        info = generate_on_cluster(ctx, args.size_mb, with_reference=not args.no_reference)
+        print(f"{info['name']} on every node; use: clusterctl run --input {info['name']}")
+    elif args.action == "clean":
+        from clusterctl.bench import clean_generated
+
+        clean_generated(ctx)
+    return 0
+
+
+def cmd_bench(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.bench import run_benchmark
+
+    sizes = tuple(int(x) for x in args.sizes.split(","))
+    report = run_benchmark(make_context(paths), sizes_mb=sizes, repeats=args.repeats,
+                           max_workers=args.max_workers)
+    print(f"{'size':>7} {'workers':>7} {'median':>8} {'speedup':>8} {'effic.':>7} {'MB/s':>7}")
+    for r in report["table"]:
+        print(f"{r['size_mb']:>5}MB {r['workers']:>7} {r['median_s']:>7}s {r['speedup']:>8} "
+              f"{r['efficiency']:>7} {r['throughput_mb_s']:>7}")
+    print(f"correct vs single-machine reference: {report['correct_vs_reference']}")
     return 0
 
 
@@ -379,6 +403,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("data", help="copy an input file to every node")
     dsub = sp.add_subparsers(dest="action", required=True)
     d = dsub.add_parser("push"); d.add_argument("file")
+    g = dsub.add_parser("generate", help="create corpus-<N>mb.txt on the master and copy to workers")
+    g.add_argument("--size-mb", type=int, required=True)
+    g.add_argument("--no-reference", action="store_true", help="skip the single-machine reference count")
+    dsub.add_parser("clean", help="delete generated corpus-*mb.txt files from every node")
     sp.set_defaults(fn=cmd_data)
 
     sp = sub.add_parser("run", help="run Word Count on the cluster")
@@ -386,6 +414,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--partitions", type=int, default=0)
     sp.add_argument("--top", type=int, default=20)
     sp.set_defaults(fn=cmd_run)
+
+    sp = sub.add_parser("bench", help="scaling benchmark: time vs workers and input size")
+    sp.add_argument("--sizes", default="100,500,1000,2000", help="comma-separated MB sizes")
+    sp.add_argument("--repeats", type=int, default=3)
+    sp.add_argument("--max-workers", type=int)
+    sp.set_defaults(fn=cmd_bench)
 
     sp = sub.add_parser("demo", help="failure-recovery demo")
     sp.add_argument("scenario", choices=["failure"])
