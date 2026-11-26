@@ -215,8 +215,10 @@ async function refreshStatus() {
     renderMaster(state.status.master);
     renderHosts();
     $("#refresh-at").textContent = new Date().toLocaleTimeString([], { hour12: false });
+    emit("status:update", { status: state.status });
   } catch (e) {
     renderMaster({ status: "UNKNOWN", error: e.message });
+    emit("status:update", { status: null, error: e.message });
   } finally {
     statusBusy = false;
     $("#btn-refresh").disabled = false;
@@ -264,13 +266,17 @@ function setJobState(text, kind) {
   const p = pill(text, kind);
   p.id = "job-state";
   $("#job-state").replaceWith(p);
-  document.querySelectorAll("[data-action]").forEach((b) => { b.disabled = kind === "running"; });
+  document.querySelectorAll("[data-action], [data-job-btn]").forEach((b) => { b.disabled = kind === "running"; });
 }
+
+// Other scripts (evidence.js) react to these instead of being called directly.
+const emit = (type, detail) => document.dispatchEvent(new CustomEvent(type, { detail }));
 
 function followJob(id, name) {
   if (state.source) state.source.close();
   state.job = id;
   setJobState(`${name} running`, "running");
+  emit("job:start", { id, name });
   const src = new EventSource(`/api/jobs/${encodeURIComponent(id)}/stream?token=${encodeURIComponent(state.token)}`);
   state.source = src;
   src.addEventListener("log", (ev) => logLine(JSON.parse(ev.data)));
@@ -280,6 +286,7 @@ function followJob(id, name) {
     state.source = null;
     setJobState(`${name} ${end.state}`, end.state === "done" ? "ok" : "down");
     if (end.state === "failed") banner(`${name} failed: ${end.error}`);
+    emit("job:end", { id, name, state: end.state });
     refreshAll();
   });
   src.onerror = () => { if (src.readyState === EventSource.CLOSED) setJobState(`${name} ?`, "pending"); };

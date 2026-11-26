@@ -1,8 +1,9 @@
 """FastAPI app for the local clusterctl dashboard.
 
 Security model: binds 127.0.0.1 only; every /api route needs the per-launch
-random token (X-Token header; the SSE stream alone may pass it as ?token=
-because EventSource cannot set headers). Passwords are write-only: they go
+random token (X-Token header; the SSE stream and the evidence report/file
+routes may pass it as ?token= because EventSource / new-tab links cannot set
+headers). Passwords are write-only: they go
 into the encrypted vault and no endpoint ever returns one.
 """
 
@@ -31,6 +32,7 @@ from clusterctl import inventory as inv
 from clusterctl.context import Context, VaultLockedError
 from clusterctl.dashboard.state import DashboardState
 from clusterctl.dashboard.actions import Action, ActionFailed, default_actions
+from clusterctl.dashboard.evidence_routes import evidence_api_routes, evidence_file_routes
 from clusterctl.dashboard.jobs import JobBusyError, sse_events
 from clusterctl.paths import ProjectPaths
 from clusterctl.runner import QueueReporter
@@ -370,10 +372,13 @@ def create_app(paths: ProjectPaths, token: str, *, actions: dict[str, Action] | 
                                  media_type="text/event-stream",
                                  headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
+    evidence_file_routes(app, st, token_ok)     # header OR ?token= (opens in a new tab)
+
     router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
     _vault_routes(router, st)
     _host_routes(router, st)
     _ops_routes(router, st)
+    evidence_api_routes(router, st)
     app.include_router(router)
 
     @app.get("/", include_in_schema=False)

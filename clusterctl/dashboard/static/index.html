@@ -7,6 +7,7 @@
   <title>clusterctl console</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
+  <script src="/static/evidence.js" defer></script>
 </head>
 <body>
   <div id="banner" class="banner" role="alert" hidden></div>
@@ -35,6 +36,73 @@
   </header>
 
   <main class="layout">
+    <!-- ============================== evidence: results first ============================== -->
+    <section class="panel span-full ev-hero" aria-labelledby="h-glance">
+      <div class="panel-head">
+        <h2 id="h-glance">Cluster at a glance</h2>
+        <span class="muted small">live from the Spark master + hardware facts from each node</span>
+      </div>
+      <div id="ev-glance" class="glance" aria-live="polite"></div>
+    </section>
+
+    <section class="panel span-full" aria-labelledby="h-nodes">
+      <div class="panel-head">
+        <h2 id="h-nodes">Physical nodes</h2>
+        <div class="row">
+          <span id="ev-facts-at" class="muted mono small"></span>
+          <button id="ev-facts-refresh" class="btn btn-ghost" type="button">Refresh facts</button>
+        </div>
+      </div>
+      <div id="ev-nodes" class="node-cards"></div>
+    </section>
+
+    <section class="panel span-full" aria-labelledby="h-wc">
+      <div class="panel-head">
+        <h2 id="h-wc">Word Count result</h2>
+        <div class="row">
+          <span id="ev-wc-badge"></span>
+          <button id="ev-run-wc" class="btn btn-primary" type="button" data-job-btn>Run Word Count now</button>
+        </div>
+      </div>
+      <div id="ev-wc"></div>
+    </section>
+
+    <section class="panel span-full" aria-labelledby="h-fail">
+      <div class="panel-head">
+        <h2 id="h-fail">Failure recovery</h2>
+        <button id="ev-run-demo" class="btn btn-danger" type="button" data-job-btn>Run failure demo now</button>
+      </div>
+      <p id="ev-demo-hint" class="hint" role="status" hidden>
+        Demo running. Open the master UI
+        (<a href="http://localhost:18080" target="_blank" rel="noopener noreferrer">localhost:18080</a>)
+        to watch the worker disappear and return.
+      </p>
+      <div id="ev-fail"></div>
+    </section>
+
+    <section class="panel span-main" aria-labelledby="h-jobhist">
+      <div class="panel-head">
+        <h2 id="h-jobhist">Job history</h2>
+        <button id="ev-jobs-refresh" class="btn btn-ghost" type="button">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="ev-jobs">
+          <thead><tr><th scope="col">app id</th><th scope="col">name</th><th scope="col">state</th>
+            <th scope="col">cores</th><th scope="col">duration</th><th scope="col">started</th></tr></thead>
+          <tbody><tr><td class="empty" colspan="6">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel span-side" aria-labelledby="h-report">
+      <div class="panel-head"><h2 id="h-report">Evidence report</h2></div>
+      <button id="ev-generate" class="btn btn-primary" type="button" data-job-btn>Generate evidence report</button>
+      <p class="muted small">A self-contained HTML page with node facts and the latest runs. Opens in a new tab.</p>
+      <ul id="ev-reports" class="ev-reports"></ul>
+    </section>
+
+    <div class="span-full section-divider" role="separator"><span>operations console</span></div>
+
     <section class="panel span-main" aria-labelledby="h-hosts">
       <div class="panel-head">
         <h2 id="h-hosts">Hosts</h2>

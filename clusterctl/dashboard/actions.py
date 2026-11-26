@@ -124,6 +124,14 @@ def do_demo_failure(ctx: Context, p: DemoParams) -> None:
                           waves=p.waves, delay_ms=p.delay_ms)
 
 
+def do_evidence(ctx: Context, _p: NoParams) -> None:
+    """Write results/evidence-<ts>.html (facts + latest runs) for the evaluator."""
+    from clusterctl.evidence import generate_report  # noqa: PLC0415 - optional module, import on use
+
+    path = Path(generate_report(ctx))
+    ctx.reporter.log("-", f"evidence report written: {path.name}", "ok")
+
+
 def default_actions() -> dict[str, Action]:
     """Name -> action. `tunnel` is handled by the app (it keeps servers alive)."""
     return {
@@ -137,4 +145,5 @@ def default_actions() -> dict[str, Action]:
         "push_data": Action(do_push_data, PushParams),
         "run_wordcount": Action(do_run_wordcount, RunParams),
         "demo_failure": Action(do_demo_failure, DemoParams, needs_vault=True),
+        "evidence": Action(do_evidence),
     }
