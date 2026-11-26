@@ -16,3 +16,4 @@ export PYSPARK_DRIVER_PYTHON="{{python_bin}}"
 export SPARK_WORKER_DIR="{{data_dir}}/work"
 export SPARK_LOG_DIR="{{data_dir}}/logs"
 {{worker_resources}}
+{{daemon_opts}}

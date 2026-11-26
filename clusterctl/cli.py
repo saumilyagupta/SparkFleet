@@ -267,6 +267,12 @@ def cmd_demo(paths: ProjectPaths, args: argparse.Namespace) -> int:
         workload.demo_failure(ctx, args.input, mode=args.mode, victim_name=args.victim,
                               waves=args.waves, delay_ms=args.delay_ms)
         return 0
+    if args.scenario == "master-failover":
+        from clusterctl.ha import demo_master_failover
+
+        d = demo_master_failover(ctx, args.input)
+        print(f"master failover: new master {d['new_master']['name']}, identical={d['identical']}")
+        return 0
     from clusterctl.scenarios import run_scenario
 
     d = run_scenario(ctx, args.scenario)
@@ -330,6 +336,20 @@ def cmd_monitor(paths: ProjectPaths, args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         sampler.stop()
         return 0
+
+
+def cmd_ha(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.ha import master_states, zookeeper_status
+
+    ctx = make_context(paths)
+    cfg = ctx.inventory.cluster
+    print(f"master HA: {'ENABLED' if cfg.ha_enabled else 'disabled'}   master URL: {ctx.inventory.spark_master_url}")
+    for m in master_states(ctx):
+        extra = f"workers={m['alive_workers']}" if "alive_workers" in m else m.get("error", "")
+        print(f"  master     {m['name']:<11} {m['ip']:<15} {m['status']:<11} {extra}")
+    for z in zookeeper_status(ctx):
+        print(f"  zookeeper  {z['name']:<11} {z['ip']:<15} {z['mode']}")
+    return 0
 
 
 def cmd_tunnel(paths: ProjectPaths, args: argparse.Namespace) -> int:
@@ -430,7 +450,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(fn=cmd_bench)
 
     sp = sub.add_parser("demo", help="failure-recovery demo")
-    sp.add_argument("scenario", choices=["failure", "shuffle", "straggler", "cascade"],
+    sp.add_argument("scenario", choices=["failure", "shuffle", "straggler", "cascade", "master-failover"],
                     help="failure: kill a busy worker | shuffle: kill during the shuffle read | "
                          "straggler: throttle a worker, speculative execution | cascade: two workers die")
     sp.add_argument("--input", default="corpus.txt", help="input for the 'failure' scenario")
@@ -439,6 +459,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--waves", type=int, default=4, help="partitions = cores x waves")
     sp.add_argument("--delay-ms", type=int, default=12000)
     sp.set_defaults(fn=cmd_demo)
+
+    sub.add_parser("ha", help="master HA status: masters (ALIVE/STANDBY) and ZooKeeper modes"
+                   ).set_defaults(fn=cmd_ha)
 
     sp = sub.add_parser("facts", help="hardware/OS facts per node (physical-machine proof)")
     sp.add_argument("--json", action="store_true")

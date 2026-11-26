@@ -36,14 +36,28 @@ def fetch_json(session: HostSession, url: str, timeout: int = 60) -> dict | list
     return data
 
 
-def master_url(ctx: Context) -> str:
+def master_url(ctx: Context, host: Host | None = None) -> str:
     cfg = ctx.inventory.cluster
-    return f"http://{ctx.inventory.master.ip}:{cfg.master_ui_port}/json/"
+    return f"http://{(host or ctx.inventory.master).ip}:{cfg.master_ui_port}/json/"
 
 
 def master_state(ctx: Context) -> dict:
-    with ctx.session(ctx.inventory.master) as s:
-        return fetch_json(s, master_url(ctx))
+    """State of the ACTIVE master. With HA, the first master reporting ALIVE wins
+    (a STANDBY knows no workers); without HA this is simply the one master."""
+    fallback, last_error = None, None
+    for host in ctx.inventory.masters:
+        try:
+            with ctx.session(host) as s:
+                state = fetch_json(s, master_url(ctx, host))
+        except Exception as exc:  # noqa: BLE001 - try the next master
+            last_error = exc
+            continue
+        if state.get("status") == "ALIVE" or len(ctx.inventory.masters) == 1:
+            return state
+        fallback = fallback or state
+    if fallback is not None:
+        return fallback
+    raise last_error if isinstance(last_error, RemoteError) else RemoteError(f"no master reachable: {last_error}")
 
 
 def service_command(services: tuple[str, ...], action: str) -> str:
@@ -65,13 +79,19 @@ def _systemctl(ctx: Context, hosts: tuple[Host, ...], action: str, label: str) -
 
 
 def start(ctx: Context, hosts: tuple[Host, ...]) -> list[HostResult]:
-    """Master first, then workers, so workers register immediately."""
+    """ZooKeeper hosts first (HA quorum), then the primary master, then everyone else,
+    so masters can elect a leader and workers register immediately."""
     master = ctx.inventory.master
+    zk_names = {z.name for z in ctx.inventory.zookeepers}
     results = []
+    zk_first = tuple(h for h in hosts if h.name in zk_names and h != master)
+    if zk_first:
+        results += _systemctl(ctx, zk_first, "start", "start")
+        time.sleep(POLL_S)
     if master in hosts:
         results += _systemctl(ctx, (master,), "start", "start")
         time.sleep(POLL_S)
-    others = tuple(h for h in hosts if h != master)
+    others = tuple(h for h in hosts if h != master and h not in zk_first)
     return results + _systemctl(ctx, others, "start", "start")
 
 

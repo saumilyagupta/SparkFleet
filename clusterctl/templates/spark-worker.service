@@ -8,7 +8,7 @@ Type=simple
 User={{user}}
 Environment=SPARK_HOME={{spark_home}}
 Environment=SPARK_NO_DAEMONIZE=true
-ExecStart={{spark_home}}/bin/spark-class org.apache.spark.deploy.worker.Worker --host {{host_ip}} --webui-port {{worker_ui_port}} spark://{{master_ip}}:{{master_port}}
+ExecStart={{spark_home}}/bin/spark-class org.apache.spark.deploy.worker.Worker --host {{host_ip}} --webui-port {{worker_ui_port}} {{spark_master_url}}
 # Restart if the worker crashes. A deliberate 'systemctl stop' (failure demo) stays stopped.
 Restart=on-failure
 RestartSec=5

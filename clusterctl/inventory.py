@@ -72,6 +72,13 @@ class ClusterConfig:
     master_runs_worker: bool = False
     # ~/.ssh/config alias of a bastion used to reach the cluster (None = direct).
     jump_host: str | None = None
+    # Master high availability (off by default). ZooKeeper elects one ALIVE master among
+    # the primary (role: master) and the standby masters; workers and drivers know all of them.
+    ha_enabled: bool = False
+    standby_masters: tuple[str, ...] = ()
+    zookeeper_hosts: tuple[str, ...] = ()
+    zookeeper_version: str = "3.8.8"
+    zookeeper_client_port: int = 2181
 
     @property
     def spark_home(self) -> str:
@@ -98,6 +105,11 @@ class ClusterConfig:
             "block_manager_port": self.block_manager_port,
             "master_runs_worker": self.master_runs_worker,
             "jump_host": self.jump_host,
+            "ha_enabled": self.ha_enabled,
+            "standby_masters": list(self.standby_masters),
+            "zookeeper_hosts": list(self.zookeeper_hosts),
+            "zookeeper_version": self.zookeeper_version,
+            "zookeeper_client_port": self.zookeeper_client_port,
         }
 
 
@@ -120,6 +132,33 @@ class Inventory:
             h for h in self.hosts
             if not h.is_master or self.cluster.master_runs_worker
         )
+
+    @property
+    def standbys(self) -> tuple[Host, ...]:
+        """Standby masters (only when HA is enabled)."""
+        if not self.cluster.ha_enabled:
+            return ()
+        return tuple(self.get(n) for n in self.cluster.standby_masters)
+
+    @property
+    def masters(self) -> tuple[Host, ...]:
+        """Every host that runs a Spark master daemon: primary first."""
+        return (self.master, *self.standbys)
+
+    @property
+    def zookeepers(self) -> tuple[Host, ...]:
+        if not self.cluster.ha_enabled:
+            return ()
+        return tuple(self.get(n) for n in self.cluster.zookeeper_hosts)
+
+    @property
+    def spark_master_url(self) -> str:
+        """spark://m1:7077 or, with HA, spark://m1:7077,m2:7077 (clients try every master)."""
+        port = self.cluster.master_port
+        return "spark://" + ",".join(f"{h.ip}:{port}" for h in self.masters)
+
+    def runs_master(self, host: Host) -> bool:
+        return any(h.name == host.name for h in self.masters)
 
     def get(self, name: str) -> Host:
         for host in self.hosts:
@@ -174,7 +213,8 @@ def _parse_cluster(raw: dict | None) -> ClusterConfig:
     if unknown:
         raise InventoryError(f"cluster has unknown keys: {', '.join(sorted(unknown))}")
     merged = {**defaults.to_dict(), **raw}
-    merged["java_packages"] = tuple(merged["java_packages"])
+    for key in ("java_packages", "standby_masters", "zookeeper_hosts"):
+        merged[key] = tuple(merged[key] or ())
     return ClusterConfig(**merged)
 
 
@@ -210,6 +250,25 @@ def validate(inventory: Inventory) -> None:
     masters = [h.name for h in inventory.hosts if h.is_master]
     if len(masters) > 1:
         raise InventoryError(f"only one master allowed, found: {', '.join(masters)}")
+    _validate_ha(inventory, masters)
+
+
+def _validate_ha(inventory: Inventory, primary: list[str]) -> None:
+    cfg = inventory.cluster
+    names = {h.name for h in inventory.hosts}
+    for field_name in ("standby_masters", "zookeeper_hosts"):
+        unknown = [n for n in getattr(cfg, field_name) if n not in names]
+        if unknown:
+            raise InventoryError(f"cluster.{field_name} names unknown hosts: {', '.join(unknown)}")
+    if not cfg.ha_enabled:
+        return
+    if not cfg.standby_masters:
+        raise InventoryError("ha_enabled needs at least one host in cluster.standby_masters")
+    if any(n in primary for n in cfg.standby_masters):
+        raise InventoryError("the primary master cannot also be a standby master")
+    count = len(cfg.zookeeper_hosts)
+    if count < 1 or count % 2 == 0:
+        raise InventoryError("cluster.zookeeper_hosts needs an odd number of hosts (3 tolerates one failure)")
 
 
 def parse(data: dict | None) -> Inventory:

@@ -116,7 +116,7 @@ def submit_command(ctx: Context, input_name: str, tag: str, *, partitions: int =
     job_opts are extra wordcount.py arguments."""
     cfg = ctx.inventory.cluster
     job, remote_input, remote_output = _remote_paths(ctx, input_name, tag)
-    master = f"spark://{ctx.inventory.master.ip}:{cfg.master_port}"
+    master = ctx.inventory.spark_master_url  # spark://m1:7077,m2:7077 with HA
     args = [
         f"{cfg.spark_home}/bin/spark-submit", "--master", master, "--name", f"WordCount-{tag}",
         *submit_opts, job, "--input", f"file://{remote_input}", "--output", remote_output,

@@ -199,6 +199,12 @@ def render_values(inventory: Inventory, host: Host) -> dict[str, object]:
     return {
         "host_name": host.name, "host_ip": host.ip, "user": host.user,
         "master_ip": inventory.master.ip, "spark_home": cfg.spark_home,
+        "spark_master_url": inventory.spark_master_url,
+        "daemon_opts": daemon_opts(inventory),
+        "zookeeper_home": f"{cfg.install_dir}/zookeeper", "zookeeper_data": f"{cfg.data_dir}/zookeeper",
+        "zookeeper_client_port": cfg.zookeeper_client_port,
+        "zookeeper_servers": "\n".join(f"server.{i}={h.ip}:2888:3888"
+                                       for i, h in enumerate(inventory.zookeepers, start=1)),
         "data_dir": cfg.data_dir, "python_bin": cfg.python_bin,
         "master_port": cfg.master_port, "master_ui_port": cfg.master_ui_port,
         "worker_ui_port": cfg.worker_ui_port, "driver_port": cfg.driver_port,
@@ -219,9 +225,28 @@ def configure_spark(session: HostSession, inventory: Inventory) -> bool:
 
 # ---------------------------------------------------------------- systemd + firewall
 
+MANAGED_SERVICES = ("zookeeper", "spark-master", "spark-worker", "spark-history")
+
+
+def zookeeper_connect(inventory: Inventory) -> str:
+    port = inventory.cluster.zookeeper_client_port
+    return ",".join(f"{h.ip}:{port}" for h in inventory.zookeepers)
+
+
+def daemon_opts(inventory: Inventory) -> str:
+    """Master recovery through ZooKeeper (HA only). Empty line when HA is off."""
+    if not inventory.cluster.ha_enabled:
+        return ""
+    opts = ("-Dspark.deploy.recoveryMode=ZOOKEEPER "
+            f"-Dspark.deploy.zookeeper.url={zookeeper_connect(inventory)} -Dspark.deploy.zookeeper.dir=/spark")
+    return f'export SPARK_DAEMON_JAVA_OPTS="{opts}"'
+
+
 def services_for(inventory: Inventory, host: Host) -> tuple[str, ...]:
     names = []
-    if host.is_master:
+    if any(z.name == host.name for z in inventory.zookeepers):
+        names.append("zookeeper")  # first: masters need the ZooKeeper quorum to elect a leader
+    if inventory.runs_master(host):
         names.append("spark-master")
     if host in inventory.workers:
         names.append("spark-worker")
@@ -236,10 +261,29 @@ def install_services(session: HostSession, inventory: Inventory, config_changed:
     changed = config_changed
     for svc in services:
         changed |= session.sudo_write(f"/etc/systemd/system/{svc}.service", render(f"{svc}.service", values))
+    removed = remove_stale_services(session, services)
     session.sudo("systemctl daemon-reload && systemctl enable " + " ".join(services) + " >/dev/null 2>&1")
     if changed:
         session.sudo(" ; ".join(f"systemctl try-restart {s}" for s in services))
-    return f"services {', '.join(services)} enabled" + (" (restarted)" if changed else "")
+    note = f"; removed {', '.join(removed)}" if removed else ""
+    return f"services {', '.join(services)} enabled" + (" (restarted)" if changed else "") + note
+
+
+def remove_stale_services(session: HostSession, wanted: tuple[str, ...]) -> list[str]:
+    """Stop, disable and delete managed units this host should no longer run.
+
+    This is what makes features reversible: turning HA or the History Server off in
+    inventory.yaml and re-running provision removes their services from the machines.
+    """
+    removed = []
+    for svc in MANAGED_SERVICES:
+        if svc in wanted:
+            continue
+        unit = f"/etc/systemd/system/{svc}.service"
+        if session.run(f"test -f {unit}", check=False).ok:
+            session.sudo(f"systemctl disable --now {svc} >/dev/null 2>&1; rm -f {unit}; systemctl daemon-reload")
+            removed.append(svc)
+    return removed
 
 
 def configure_firewall(session: HostSession, inventory: Inventory) -> str:
@@ -309,6 +353,10 @@ def provision(ctx: Context, hosts: tuple[Host, ...]) -> None:
     def do_install(host: Host) -> str:
         with sudo_session(host) as s:
             spark = install_spark(s, cfg, urls, sha512, local_tarball)
+            if any(z.name == host.name for z in inventory.zookeepers):
+                from clusterctl.ha import install_zookeeper
+
+                spark += "; " + install_zookeeper(s, inventory)
             changed = configure_spark(s, inventory)
             svc = install_services(s, inventory, changed)
             return f"{spark}; {svc}"
