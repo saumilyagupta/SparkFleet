@@ -1,0 +1,63 @@
+:root {
+  --ink: #16202b; --muted: #5b6876; --paper: #fbfaf7; --panel: #ffffff; --line: #e3e0d8;
+  --accent: #c2410c; --good: #15803d; --good-bg: #e8f5ec; --bad: #b91c1c; --bad-bg: #fdecec;
+  --warn: #b45309; --warn-bg: #fff4e0; --bar: #1f4e79; --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 40px 16px 80px; }
+header { border-bottom: 3px solid var(--ink); padding-bottom: 18px; margin-bottom: 28px; }
+.kicker { margin: 0; color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.1; margin: 6px 0 8px; letter-spacing: -.01em; }
+.meta { margin: 0; color: var(--muted); }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px; margin: 0 0 22px;
+  break-inside: avoid; }
+h2 { margin: 0 0 14px; font-size: 20px; }
+h3 { margin: 22px 0 8px; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 14px; }
+.chip { flex: 1 1 150px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--paper); }
+.chip span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.chip b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.chip.good { border-color: var(--good); background: var(--good-bg); }
+.chip.good b { color: var(--good); }
+.chip.bad { border-color: var(--bad); background: var(--bad-bg); }
+.chip.bad b { color: var(--bad); }
+.verdict { border-left: 5px solid var(--muted); padding: 10px 14px; margin: 12px 0; background: var(--paper); font-weight: 600; }
+.verdict.good { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.verdict.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+.lead { font-size: 17px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+tr.degraded td { background: var(--warn-bg); }
+small { color: var(--muted); }
+code, pre { font-family: var(--mono); font-size: 12.5px; }
+pre { background: #12181f; color: #d8e1ea; padding: 14px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;
+  word-break: break-word; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-weight: 700; font-size: 12px; }
+.pill.good { background: var(--good-bg); color: var(--good); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.note { color: var(--muted); font-size: 13px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.steps { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--good); }
+.steps li { position: relative; padding: 6px 0 6px 18px; }
+.steps li::before { content: ""; position: absolute; left: -8px; top: 12px; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--good); }
+.steps li.kill::before { background: var(--warn); }
+.steps li.kill { color: var(--warn); font-weight: 600; }
+.steps li span { display: inline-block; width: 80px; color: var(--muted); font-family: var(--mono); font-size: 12.5px; }
+svg { width: 100%; height: auto; display: block; }
+svg rect.n-ctl { fill: #eef2f6; stroke: #94a3b8; }
+svg rect.n-jump { fill: #f5f3ff; stroke: #8b5cf6; }
+svg rect.n-master { fill: #fff1e6; stroke: var(--accent); stroke-width: 2; }
+svg rect.n-worker { fill: var(--good-bg); stroke: var(--good); }
+svg .t1 { font: 600 14px "Segoe UI", sans-serif; fill: var(--ink); }
+svg .t2 { font: 12px ui-monospace, Consolas, monospace; fill: var(--muted); }
+svg .l-ssh { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 6 4; }
+svg .l-spark { stroke: var(--accent); stroke-width: 2; }
+svg .bar { fill: var(--bar); }
+svg .bl { font: 12.5px ui-monospace, Consolas, monospace; fill: var(--ink); }
+svg .bv { font: 12px "Segoe UI", sans-serif; fill: var(--muted); }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } section { padding: 16px; } table { display: block; overflow-x: auto; } }
+@media print { body { background: #fff; } main { padding: 0; } section { border-color: #ccc; } pre { background: #f4f4f4; color: #111; } }
