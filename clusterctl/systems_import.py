@@ -62,10 +62,12 @@ def parse_systems(data: dict, *, master: str | None = None,
     if not isinstance(entries, list) or not entries:
         raise InventoryError("systems file must contain a non-empty 'systems' list")
     for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise InventoryError(f"systems[{i}] must be an object")
         missing = [k for k in ("ip_address", "username") if not entry.get(k)]
         if missing:
             raise InventoryError(f"systems[{i}] missing {', '.join(missing)}")
-    names = [_slug(str(e.get("system") or f"node {i + 1}"), i) for i, e in enumerate(entries)]
+    names = [_slug(str(e.get("system") or ""), i) for i, e in enumerate(entries)]
     master_index = _pick_master(entries, names, master)
     master_ip = entries[master_index]["ip_address"]
     if master_ip in local_ips():
