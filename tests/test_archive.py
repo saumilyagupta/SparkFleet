@@ -35,3 +35,15 @@ def test_archive_is_idempotent(tmp_path):
     archive(paths)
 
     assert archive(paths).unchanged == ("demo-a.md",)
+
+
+def test_archive_catches_json_and_html_escaped_secrets(tmp_path):
+    paths = ProjectPaths(tmp_path)
+    paths.results_dir.mkdir()
+    (paths.results_dir / "demo-j.json").write_text('{"x": "pa\\"ss<w>"}')     # JSON-escaped form
+    (paths.results_dir / "demo-h.md").write_text("pa&quot;ss&lt;w&gt;")       # HTML-escaped form
+
+    result = archive(paths, vault_secrets=('pa"ss<w>',))
+
+    assert result.copied == ()
+    assert len(result.refused) == 2

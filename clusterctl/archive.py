@@ -7,8 +7,10 @@ password, the vault master password or a private key is refused.
 
 from __future__ import annotations
 
+import html
+import json
 import re
-import shutil
+from urllib.parse import quote
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,11 +35,21 @@ class ArchiveResult:
     refused: tuple[str, ...]
 
 
+def _variants(secret: str) -> set[bytes]:
+    """The secret as it would appear raw, JSON-escaped, HTML-escaped or URL-encoded."""
+    forms = {secret, json.dumps(secret)[1:-1], json.dumps(secret, ensure_ascii=False)[1:-1],
+             html.escape(secret), html.escape(secret, quote=False), quote(secret, safe="")}
+    return {f.encode("utf-8") for f in forms if f}
+
+
 def _secrets(paths: ProjectPaths, vault_secrets: tuple[str, ...]) -> tuple[bytes, ...]:
-    found = [s.encode() for s in vault_secrets if len(s) >= 4]
+    found: set[bytes] = set()
+    for secret in vault_secrets:
+        if secret:
+            found |= _variants(secret)
     pass_file = paths.root / ".vault-pass"
-    if pass_file.is_file():
-        found.append(pass_file.read_text(encoding="utf-8").strip().encode())
+    if pass_file.is_file() and not pass_file.is_symlink():
+        found |= _variants(pass_file.read_text(encoding="utf-8").strip())
     return tuple(f for f in found if f)
 
 
@@ -51,7 +63,7 @@ def archive(paths: ProjectPaths, vault_secrets: tuple[str, ...] = ()) -> Archive
     secrets = _secrets(paths, vault_secrets)
     copied, unchanged, refused = [], [], []
     for path in sorted(src.glob("*")) if src.is_dir() else []:
-        if not path.is_file() or not wanted(path.name):
+        if path.is_symlink() or not path.is_file() or not wanted(path.name):
             continue
         data = path.read_bytes()
         if len(data) > MAX_BYTES:
@@ -64,6 +76,6 @@ def archive(paths: ProjectPaths, vault_secrets: tuple[str, ...] = ()) -> Archive
         if target.exists() and target.read_bytes() == data:
             unchanged.append(path.name)
             continue
-        shutil.copyfile(path, target)
+        target.write_bytes(data)  # exactly the bytes that were scanned
         copied.append(path.name)
     return ArchiveResult(tuple(copied), tuple(unchanged), tuple(refused))

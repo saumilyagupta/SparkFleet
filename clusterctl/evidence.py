@@ -254,9 +254,9 @@ def _jobs(history: dict) -> str:
         return f"<p>{e(history.get('error', 'No applications recorded.'))}</p>"
     peak = max((a.get("cores") or 0) for a in apps)
     rows = "".join(
-        f"<tr class='{'degraded' if (a.get('cores') or 0) < peak else ''}'><td><code>{e(a['id'])}</code></td>"
-        f"<td>{e(a['name'])}</td><td>{e(a['state'])}</td><td>{e(a['cores'])}</td><td>{e(a['duration_s'])} s</td>"
-        f"<td>{e(datetime.fromtimestamp((a.get('started') or 0) / 1000).strftime('%Y-%m-%d %H:%M:%S'))}</td></tr>"
+        f"<tr class='{'degraded' if a.get('cores') is not None and a['cores'] < peak else ''}'><td><code>{e(a['id'])}</code></td>"
+        f"<td>{e(a['name'])}</td><td>{e(a['state'])}</td><td>{e(a['cores'] if a.get('cores') is not None else '–')}</td><td>{e(a['duration_s'])} s</td>"
+        f"<td>{e(datetime.fromtimestamp(a['started'] / 1000).strftime('%Y-%m-%d %H:%M:%S') if a.get('started') else '–')}</td></tr>"
         for a in apps)
     return ("<table><thead><tr><th>Application</th><th>Name</th><th>State</th><th>Cores</th><th>Duration</th>"
             f"<th>Started</th></tr></thead><tbody>{rows}</tbody></table>"

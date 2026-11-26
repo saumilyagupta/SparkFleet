@@ -305,7 +305,7 @@ def cmd_history(paths: ProjectPaths, args: argparse.Namespace) -> int:
     history = cluster_ops.job_history(make_context(paths))
     print(f"applications on {history['master']}:")
     for a in history["apps"]:
-        print(f"  {a['id']:<26} {a['state']:<9} cores={a['cores']:<3} {a['duration_s']:>7}s  {a['name']}")
+        print(f"  {a['id']:<26} {a['state']:<9} cores={a['cores'] if a['cores'] is not None else '-'!s:<3} {a['duration_s']:>7}s  {a['name']}")
     return 0
 
 

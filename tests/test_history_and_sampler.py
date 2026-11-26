@@ -101,3 +101,18 @@ def test_sampler_backs_off_reconnects_to_down_node(sample_inventory):
         sampler.tick()
 
     assert len(attempts) == 1           # ticks 2-5 skip the reconnect (RETRY_DOWN_EVERY = 5)
+
+
+def test_job_history_merges_master_and_history_server():
+    from clusterctl.cluster_ops import history_row, merge_history
+
+    master_rows = [{"id": "a2", "name": "new", "cores": 72, "started": 200, "state": "FINISHED"}]
+    hist = [history_row({"id": "a1", "name": "old", "attempts": [
+                {"startTimeEpoch": 100, "duration": 9000, "completed": True, "sparkUser": "u"}]}),
+            history_row({"id": "a2", "name": "new", "attempts": [{"startTimeEpoch": 200, "completed": True}]})]
+
+    rows = merge_history(master_rows, hist)
+
+    assert [r["id"] for r in rows] == ["a2", "a1"]        # newest first, no duplicates
+    assert rows[0]["cores"] == 72                          # master's row wins (knows cores)
+    assert rows[1]["duration_s"] == 9.0 and rows[1]["state"] == "FINISHED"

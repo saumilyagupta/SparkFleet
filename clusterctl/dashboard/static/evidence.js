@@ -263,7 +263,7 @@ async function refreshJobs() {
     if (!apps.length) { body.replaceChildren(h("tr", {}, h("td", { class: "empty", colspan: "6", text: "No applications since the master started." }))); return; }
     const maxCores = Math.max(...apps.map((a) => a.cores || 0));
     body.replaceChildren(...apps.map((a) => {
-      const degraded = (a.cores || 0) < maxCores;
+      const degraded = a.cores != null && a.cores < maxCores;  // null = History Server row, cores unknown
       const state_ = a.state === "FINISHED" ? pill("finished", "ok") : a.state === "RUNNING" ? pill("running", "running") : pill(a.state || "?", "down");
       return h("tr", { class: degraded ? "lost-worker" : "" }, td(a.id), td(a.name), td(state_),
         td(h("span", { text: fmt(a.cores) }), degraded ? h("span", { class: "tag-lost", text: "ran with a lost worker" }) : null),

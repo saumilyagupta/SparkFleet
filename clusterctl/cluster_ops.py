@@ -145,13 +145,49 @@ def _app_row(app: dict, state: str) -> dict:
     }
 
 
+HISTORY_LIMIT = 200
+
+
+def history_row(app: dict) -> dict:
+    """A History Server application -> the same row shape as the master's (cores unknown)."""
+    attempt = (app.get("attempts") or [{}])[-1]
+    return {
+        "id": app.get("id"), "name": app.get("name"), "cores": app.get("coresGranted"),
+        "memory_per_executor_mb": app.get("memoryPerExecutorMB"),
+        "started": attempt.get("startTimeEpoch"), "duration_s": round((attempt.get("duration") or 0) / 1000, 1),
+        "state": "FINISHED" if attempt.get("completed") else "RUNNING", "user": attempt.get("sparkUser"),
+    }
+
+
+def merge_history(master_rows: list[dict], history_rows: list[dict]) -> list[dict]:
+    """Master rows win (they know the cores each app got); the History Server fills in apps
+    the master forgot because it restarted. Running first, then newest first."""
+    by_id = {r["id"]: r for r in history_rows if r.get("id")}
+    by_id.update({r["id"]: r for r in master_rows if r.get("id")})
+    rows = list(by_id.values())
+    rows.sort(key=lambda r: (r.get("state") != "RUNNING", -(r.get("started") or 0)))
+    return rows
+
+
+def _history_server_apps(ctx: Context) -> list[dict]:
+    cfg = ctx.inventory.cluster
+    if not cfg.history_server:
+        return []
+    url = f"http://{ctx.inventory.master.ip}:{cfg.history_ui_port}/api/v1/applications?limit={HISTORY_LIMIT}"
+    try:
+        with ctx.session(ctx.inventory.master) as s:
+            return [history_row(a) for a in fetch_json(s, url, timeout=20)]
+    except Exception:  # noqa: BLE001 - history is a bonus source; the master list still works
+        return []
+
+
 def job_history(ctx: Context) -> dict:
-    """Every application the master has seen since it started (running first, newest first)."""
+    """Every application run on the cluster: the master's list (since it last started) plus the
+    History Server's (survives master restarts). Running first, newest first."""
     state = master_state(ctx)
-    active = [_app_row(a, "RUNNING") for a in state.get("activeapps", [])]
-    done = [_app_row(a, "FINISHED") for a in state.get("completedapps", [])]
-    done.sort(key=lambda r: r.get("started") or 0, reverse=True)
-    return {"master": state.get("url"), "apps": active + done}
+    master_rows = ([_app_row(a, "RUNNING") for a in state.get("activeapps", [])]
+                   + [_app_row(a, "FINISHED") for a in state.get("completedapps", [])])
+    return {"master": state.get("url"), "apps": merge_history(master_rows, _history_server_apps(ctx))}
 
 
 @dataclass(frozen=True)

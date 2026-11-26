@@ -156,7 +156,10 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
     # 12 waves x 10 s = 2+ minutes: longer than the ~40-90 s ZooKeeper takes to elect the standby,
     # so the job is genuinely still running when the new master takes over.
     partitions, delay_ms = 12 * cores, 10_000
-    stopped_primary = False
+    stopped_primary, pid, finished = False, "", False
+    from clusterctl.scenarios import _kill_job, _no_other_app_running
+
+    _no_other_app_running(ctx)
     try:
         with ctx.session(inv.master) as s:  # driver always on system-01
             _upload_job(ctx, s)
@@ -179,6 +182,7 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
                     s.run(f"pkill -TERM -s {shlex.quote(pid)} || kill {shlex.quote(pid)}", check=False)
                     raise WorkloadError("failover job did not finish in time; stopped it")
                 time.sleep(3)
+            finished = True
             log_text = s.read_text(log_path)
             if "WORDCOUNT_DONE" not in log_text:
                 raise WorkloadError(f"job did not finish; see {log_path} on {inv.master.name}")
@@ -192,14 +196,19 @@ def demo_master_failover(ctx: Context, input_name: str = "corpus.txt") -> dict:
         tl.add(ctx, f"new application submitted after failover ran on {standby.name}: "
                     f"result identical={new_app_ok}", "ok" if new_app_ok else "error")
     finally:
+        if pid and not finished:
+            _kill_job(ctx, pid)  # never leave the demo driver holding the cluster's cores
         if stopped_primary:  # never leave the primary master stopped, whatever happened above
             try:
                 with ctx.session(primary, need_sudo=True) as p:
                     p.sudo("systemctl start spark-master")
             except Exception as exc:  # noqa: BLE001
                 ctx.reporter.log("demo", f"RESTORE FAILED: could not restart {primary.name}: {exc}", "error")
-    _wait_status(ctx, primary, "STANDBY", 120)
-    tl.add(ctx, f"{primary.name} restarted and rejoined as STANDBY", "ok")
+    try:
+        _wait_status(ctx, primary, "STANDBY", 120)
+        tl.add(ctx, f"{primary.name} restarted and rejoined as STANDBY", "ok")
+    except WorkloadError as exc:  # restarted already; do not lose the report over a slow rejoin
+        tl.add(ctx, f"{primary.name} restarted but not yet STANDBY: {exc}", "warn")
     identical = result_sha == expected and new_app_ok
     tl.add(ctx, f"results identical to single-machine count: {identical}", "ok" if identical else "error")
     return _save(ctx, stamp, tag, primary, standby, tl, log_text, result_sha, expected, input_name)
