@@ -244,6 +244,41 @@ def cmd_demo(paths: ProjectPaths, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_facts(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.facts import collect_facts
+
+    facts = collect_facts(make_context(paths))
+    if args.json:
+        print(json.dumps(facts, indent=2))
+        return 0
+    for f in facts:
+        if not f["reachable"]:
+            print(f"  {f['name']:<11} {f['ip']:<15} UNREACHABLE: {f['error']}")
+            continue
+        print(f"  {f['name']:<11} {f['ip']:<15} {f['role']:<7} host={f['hostname']:<12} "
+              f"virt={f['virt']:<5} {f['vendor']} {f['product']}")
+        print(f"  {'':<11} {f['cpu_model']} x{f['cpu_cores']} | {f['mem_gb']} GB | {f['os']} | {f['java']}")
+    physical = sum(1 for f in facts if f.get("is_physical"))
+    print(f"{physical}/{len(facts)} nodes report virtualization 'none' (bare metal)")
+    return 0
+
+
+def cmd_history(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    history = cluster_ops.job_history(make_context(paths))
+    print(f"applications on {history['master']}:")
+    for a in history["apps"]:
+        print(f"  {a['id']:<26} {a['state']:<9} cores={a['cores']:<3} {a['duration_s']:>7}s  {a['name']}")
+    return 0
+
+
+def cmd_evidence(paths: ProjectPaths, args: argparse.Namespace) -> int:
+    from clusterctl.evidence import generate_report
+
+    report = generate_report(make_context(paths))
+    print(f"evidence report: {report}")
+    return 0
+
+
 def cmd_tunnel(paths: ProjectPaths, args: argparse.Namespace) -> int:
     from clusterctl.tunnel import open_tunnels
 
@@ -339,6 +374,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--waves", type=int, default=4, help="partitions = cores x waves")
     sp.add_argument("--delay-ms", type=int, default=12000)
     sp.set_defaults(fn=cmd_demo)
+
+    sp = sub.add_parser("facts", help="hardware/OS facts per node (physical-machine proof)")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_facts)
+    sub.add_parser("history", help="applications the master has run").set_defaults(fn=cmd_history)
+    sub.add_parser("evidence", help="write an offline HTML evidence report to results/").set_defaults(fn=cmd_evidence)
 
     sub.add_parser("tunnel", help="forward Spark web UIs to localhost").set_defaults(fn=cmd_tunnel)
 

@@ -104,6 +104,25 @@ def verify(ctx: Context, timeout_s: int = VERIFY_TIMEOUT_S) -> dict:
     raise RemoteError(f"cluster not healthy after {timeout_s}s: {last_err}")
 
 
+def _app_row(app: dict, state: str) -> dict:
+    duration_ms = app.get("duration") or 0
+    return {
+        "id": app.get("id"), "name": app.get("name"), "cores": app.get("cores"),
+        "memory_per_executor_mb": app.get("memoryperexecutor") or app.get("memoryperslave"),
+        "started": app.get("starttime"), "duration_s": round(duration_ms / 1000, 1),
+        "state": app.get("state") or state, "user": app.get("user"),
+    }
+
+
+def job_history(ctx: Context) -> dict:
+    """Every application the master has seen since it started (running first, newest first)."""
+    state = master_state(ctx)
+    active = [_app_row(a, "RUNNING") for a in state.get("activeapps", [])]
+    done = [_app_row(a, "FINISHED") for a in state.get("completedapps", [])]
+    done.sort(key=lambda r: r.get("started") or 0, reverse=True)
+    return {"master": state.get("url"), "apps": active + done}
+
+
 @dataclass(frozen=True)
 class HostStatus:
     name: str
