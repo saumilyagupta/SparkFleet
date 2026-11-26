@@ -62,6 +62,21 @@ def _download(url: str, dest: Path, reporter: Reporter) -> None:
     tmp.replace(dest)
 
 
+def release_info(cfg: ClusterConfig) -> tuple[list[str], str]:
+    """Return (candidate download URLs, expected sha512) without downloading the tarball."""
+    name = tarball_name(cfg)
+    errors = []
+    for mirror in MIRRORS:
+        base = f"{mirror}/spark-{cfg.spark_version}/{name}"
+        try:
+            expected = parse_sha512(_fetch(base + ".sha512").decode("utf-8", "replace"), name)
+        except Exception as exc:  # noqa: BLE001 - try next mirror
+            errors.append(f"{mirror}: {exc}")
+            continue
+        return [f"{m}/spark-{cfg.spark_version}/{name}" for m in MIRRORS], expected
+    raise DistError("could not fetch Spark checksum: " + "; ".join(errors))
+
+
 def ensure_tarball(cfg: ClusterConfig, cache_dir: Path, reporter: Reporter) -> tuple[Path, str]:
     """Return (local tarball path, verified sha512). Downloads only if not cached."""
     cache_dir.mkdir(parents=True, exist_ok=True)

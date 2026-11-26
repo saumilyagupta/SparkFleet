@@ -206,8 +206,9 @@ def cmd_status(paths: ProjectPaths, args: argparse.Namespace) -> int:
     for h in data["hosts"]:
         svc = " ".join(f"{k}={v}" for k, v in h["services"].items())
         state = "up" if h["reachable"] else f"DOWN ({h['error']})"
-        print(f"  {h['name']:<12} {h['ip']:<16} {h['role']:<7} {state:<6} {svc:<40} "
-              f"alive={h['worker_alive']}  {h['spark']}")
+        worker = ("ALIVE" if h["worker_alive"] else "not registered") if "spark-worker" in h["services"] else "-"
+        print(f"  {h['name']:<12} {h['ip']:<16} {h['role']:<7} {state:<6} {svc:<26} "
+              f"worker={worker:<15} {h['spark'][:12]}")
     return 0
 
 

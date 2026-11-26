@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import shlex
+import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from clusterctl.context import Context
 from clusterctl.inventory import ClusterConfig, Host, Inventory
 from clusterctl.render import render
 from clusterctl.runner import HostResult, all_ok, failed_names, run_parallel
-from clusterctl.spark_dist import ensure_tarball, tarball_name
+from clusterctl.spark_dist import ensure_tarball, release_info, tarball_name
 from clusterctl.ssh import HostSession, RemoteError
 
 MIN_DISK_KB = 2 * 1024 * 1024
@@ -138,7 +140,29 @@ def update_hosts_file(session: HostSession, inventory: Inventory) -> str:
 
 # ---------------------------------------------------------------- spark install
 
-def install_spark(session: HostSession, cfg: ClusterConfig, tarball: Path, sha512: str) -> str:
+def _remote_sha512(session: HostSession, path: str) -> str:
+    return session.run(f"sha512sum {shlex.quote(path)} 2>/dev/null | cut -d' ' -f1", check=False).out.strip()
+
+
+def _node_download(session: HostSession, urls: list[str], dest: str) -> bool:
+    """Let the node fetch Spark itself (much faster than pushing through the laptop)."""
+    for url in urls:
+        q_url, q_dest = shlex.quote(url), shlex.quote(dest)
+        cmd = (f"if command -v curl >/dev/null; then curl -fsSL --retry 2 -o {q_dest} {q_url}; "
+               f"elif command -v wget >/dev/null; then wget -q -O {q_dest} {q_url}; "
+               f"else python3 -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "
+               f"{q_url} {q_dest}; fi")
+        if session.run(cmd, check=False, timeout=3600).ok:
+            return True
+    return False
+
+
+def install_spark(session: HostSession, cfg: ClusterConfig, urls: list[str], sha512: str,
+                  local_tarball: Callable[[], Path]) -> str:
+    """Install Spark. Node downloads it directly; falls back to an upload from the laptop.
+
+    Either way the archive must match the official SHA-512 before it is unpacked.
+    """
     target = f"{cfg.install_dir}/{cfg.spark_dirname}"
     user = shlex.quote(session.host.user)
     data_dirs = " ".join(shlex.quote(f"{cfg.data_dir}/{d}") for d in DATA_SUBDIRS)
@@ -146,16 +170,17 @@ def install_spark(session: HostSession, cfg: ClusterConfig, tarball: Path, sha51
     status = "spark already installed"
     if not installed:
         remote_tgz = f"/tmp/{tarball_name(cfg)}"
-        have = session.run(f"sha512sum {shlex.quote(remote_tgz)} 2>/dev/null | cut -d' ' -f1",
-                           check=False).out.strip()
-        if have != sha512:
-            session.put_file(tarball, remote_tgz)
-            have = session.run(f"sha512sum {shlex.quote(remote_tgz)} | cut -d' ' -f1").out.strip()
-            if have != sha512:
-                raise RemoteError("uploaded Spark tarball failed SHA-512 check")
+        source = "cached"
+        if _remote_sha512(session, remote_tgz) != sha512:
+            source = "downloaded on node"
+            if not (_node_download(session, urls, remote_tgz) and _remote_sha512(session, remote_tgz) == sha512):
+                source = "pushed from laptop"
+                session.put_file(local_tarball(), remote_tgz)
+            if _remote_sha512(session, remote_tgz) != sha512:
+                raise RemoteError("Spark tarball failed SHA-512 check")
         session.sudo(f"tar -xzf {shlex.quote(remote_tgz)} -C {shlex.quote(cfg.install_dir)} "
                      f"&& rm -f {shlex.quote(remote_tgz)}")
-        status = f"installed {cfg.spark_dirname}"
+        status = f"installed {cfg.spark_dirname} ({source}, SHA-512 ok)"
     session.sudo(
         f"ln -sfn {shlex.quote(target)} {shlex.quote(cfg.spark_home)} && "
         f"chown -R {user}: {shlex.quote(target)} && mkdir -p {data_dirs} && "
@@ -268,11 +293,17 @@ def provision(ctx: Context, hosts: tuple[Host, ...]) -> None:
     version = check_python_consistency({r.host: r.value for r in facts})
     ctx.reporter.info(f"python {version} on every node")
 
-    tarball, sha512 = ensure_tarball(cfg, ctx.paths.cache_dir, ctx.reporter)
+    urls, sha512 = release_info(cfg)
+    ctx.reporter.info(f"Spark {cfg.spark_version} SHA-512 {sha512[:16]}... (from apache.org)")
+    tarball_lock = threading.Lock()
+
+    def local_tarball() -> Path:
+        with tarball_lock:  # download once on the laptop, only if some node needs it
+            return ensure_tarball(cfg, ctx.paths.cache_dir, ctx.reporter)[0]
 
     def do_install(host: Host) -> str:
         with sudo_session(host) as s:
-            spark = install_spark(s, cfg, tarball, sha512)
+            spark = install_spark(s, cfg, urls, sha512, local_tarball)
             changed = configure_spark(s, inventory)
             svc = install_services(s, inventory, changed)
             return f"{spark}; {svc}"
