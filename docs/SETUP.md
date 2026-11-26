@@ -129,9 +129,13 @@ python -m clusterctl tunnel
 
 It forwards these addresses through the jump host:
 
-- `localhost:8080`: master UI
-- `localhost:4040`: running job UI
-- `localhost:8081` to `8083`: worker UIs
+- `localhost:18080`: master UI
+- `localhost:14040`: running job UI (only while a job runs)
+- `localhost:18081` to `18083`: worker UIs
+
+The local ports are the Spark ports plus 10000, so they don't clash with programs already using
+8080 on the laptop (for example a local Postgres/Apache install). If a port is still busy, the next
+free one is used and printed.
 
 ## 6. Word Count
 

@@ -272,7 +272,7 @@ def _ops_routes(r: APIRouter, st: DashboardState) -> None:
     @r.get("/tunnel")
     def tunnel_info() -> dict:
         return {"open": bool(st.tunnels),
-                "forwards": [{"local_port": f.local_port, "label": f.label} for f, _ in st.tunnels]}
+                "forwards": [{"local_port": _bound_port(f, srv), "label": f.label} for f, srv in st.tunnels]}
 
     @r.post("/tunnel/close")
     def tunnel_close() -> dict:
@@ -300,6 +300,12 @@ def _start_action(st: DashboardState, name: str, params_raw: dict) -> dict:
     ctx.inventory.select(getattr(params, "limit", None))     # unknown host -> 400 now, not later
     job = st.jobs.start(name, lambda rep: action.fn(ctx.with_reporter(rep), params))
     return {"job_id": job.id}
+
+
+def _bound_port(fwd, server) -> int:
+    """Actual local port (may differ from the planned one if it was busy)."""
+    address = getattr(server, "server_address", None)
+    return int(address[1]) if address else int(fwd.local_port)
 
 
 def _start_tunnel(st: DashboardState) -> dict:

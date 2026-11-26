@@ -179,7 +179,7 @@ The full report is in `results/demo-20261126-180441.md`. These are the key lines
 ## 6. How to demo during evaluation
 
 1. Run `python -m clusterctl status` to show 4 physical machines, the master ALIVE and 3 workers ALIVE.
-2. Run `python -m clusterctl tunnel` and open http://localhost:8080 to show the master UI with 3 workers and 72 cores.
-3. Run `python -m clusterctl run --input corpus.txt --partitions 72`. Then open http://localhost:8080 and the application's event timeline to show the tasks spread over all 3 workers.
-4. Run `python -m clusterctl demo failure --input corpus.txt`. While it runs, watch http://localhost:8080: the killed worker disappears from the ALIVE list. Watch http://localhost:4040 for the failed tasks being re-run. At the end, show `results/demo-*.md`.
+2. Run `python -m clusterctl tunnel` and open http://localhost:18080 to show the master UI with 3 workers and 72 cores.
+3. Run `python -m clusterctl run --input corpus.txt --partitions 72`. Then open http://localhost:18080 and the application's event timeline to show the tasks spread over all 3 workers.
+4. Run `python -m clusterctl demo failure --input corpus.txt`. While it runs, watch http://localhost:18080: the killed worker disappears from the ALIVE list. Watch http://localhost:14040 for the failed tasks being re-run. At the end, show `results/demo-*.md`.
 5. Optionally run `python -m clusterctl dashboard` and do the same from the web UI.

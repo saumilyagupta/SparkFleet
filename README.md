@@ -60,7 +60,7 @@ python -m venv .venv
 .venv\Scripts\python -m clusterctl demo failure --input corpus.txt
 
 # Spark web UIs in your browser, tunnelled through the jump host
-.venv\Scripts\python -m clusterctl tunnel      # http://localhost:8080, :4040, :8081..
+.venv\Scripts\python -m clusterctl tunnel      # http://localhost:18080 (master), :14040 (job), :18081.. (workers)
 
 # Web dashboard
 .venv\Scripts\python -m clusterctl dashboard   # prints http://127.0.0.1:8765/?token=...

@@ -295,9 +295,9 @@ async function resumeRunningJob() {
 function renderTunnelLinks(forwards) {
   const list = $("#tunnel-links");
   const items = forwards && forwards.length ? forwards : [
-    { local_port: 8080, label: "master UI" }, { local_port: 4040, label: "running job" },
+    { local_port: 18080, label: "master UI" }, { local_port: 14040, label: "running job" },
     ...((state.inventory && state.inventory.hosts) || []).filter((x) => x.role === "worker")
-      .map((x, i) => ({ local_port: 8081 + i, label: `worker ${x.name}` })),
+      .map((x, i) => ({ local_port: 18081 + i, label: `worker ${x.name}` })),
   ];
   list.replaceChildren(...items.map((f) => h("li", {},
     h("a", { href: `http://localhost:${Number(f.local_port)}`, target: "_blank", rel: "noopener noreferrer", text: `:${f.local_port} ${f.label}` }))));
