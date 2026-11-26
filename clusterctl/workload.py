@@ -14,6 +14,7 @@ from pathlib import Path
 from clusterctl.cluster_ops import alive_worker_ips, fetch_json, master_state, verify
 from clusterctl.context import Context
 from clusterctl.inventory import Host
+from clusterctl.results import parse_driver_log, reference_counts, write_json
 from clusterctl.runner import all_ok, failed_names, run_parallel
 from clusterctl.ssh import HostSession, RemoteError
 
@@ -119,8 +120,11 @@ def run_wordcount(ctx: Context, input_name: str, *, tag: str | None = None, part
         _upload_job(ctx, s)
         cmd = submit_command(ctx, input_name, tag, partitions=partitions, top=top, delay_ms=delay_ms)
         ctx.reporter.log(master.name, f"$ {cmd}")
+        captured: list[str] = []
+        started = datetime.now()
 
         def on_line(line: str) -> None:
+            captured.append(line)
             level = "ok" if SUMMARY_RE.match(line) else ("warn" if RECOVERY_RE.search(line) else "info")
             if level != "info" or " ERROR " in line or "Exception" in line:
                 ctx.reporter.log(master.name, line, level)
@@ -131,7 +135,24 @@ def run_wordcount(ctx: Context, input_name: str, *, tag: str | None = None, part
         local = ctx.paths.results_dir / f"{tag}.tsv"
         s.get_file(remote_output, local)
     ctx.reporter.log("-", f"result saved to {local}", "ok")
+    _save_run_json(ctx, tag, input_name, started, captured, local)
     return local
+
+
+def _save_run_json(ctx: Context, tag: str, input_name: str, started: datetime,
+                   lines: list[str], result: Path) -> None:
+    """Write results/<tag>.json for the dashboard and evidence report."""
+    parsed = parse_driver_log(lines)
+    data = {"tag": tag, "input": input_name, "started": started.isoformat(timespec="seconds"),
+            "result_file": result.name, "result_sha256": file_digest(result), **parsed}
+    reference = reference_counts(ctx.paths, input_name)
+    if reference is not None:
+        data["reference_file"] = reference.name
+        data["matches_local_reference"] = file_digest(reference) == data["result_sha256"]
+        verdict = "IDENTICAL to" if data["matches_local_reference"] else "DIFFERENT from"
+        ctx.reporter.log("-", f"cluster result {verdict} single-machine count",
+                         "ok" if data["matches_local_reference"] else "error")
+    write_json(ctx.paths.results_dir / f"{tag}.json", data)
 
 
 def file_digest(path: Path) -> str:
@@ -251,10 +272,48 @@ def demo_failure(ctx: Context, input_name: str, *, mode: str = "worker", victim_
     report = ctx.paths.results_dir / f"demo-{stamp}.md"
     report.write_text(_demo_report(stamp, mode, victim, partitions, delay_ms, tl, recovery_lines,
                                    baseline, recovered, same, local_log), encoding="utf-8")
+    parsed = parse_driver_log(log_text.splitlines())
+    write_json(ctx.paths.results_dir / f"demo-{stamp}.json", {
+        "stamp": stamp, "input": input_name, "mode": mode,
+        "victim": {"name": victim.name, "ip": victim.ip},
+        "partitions": partitions, "delay_ms": delay_ms, "identical": same,
+        "baseline": {"file": baseline.name, "sha256": file_digest(baseline)},
+        "recovered": {"file": recovered.name, "sha256": file_digest(recovered)},
+        "timeline": [{"t": round(t, 1), "event": e} for t, e in tl.events],
+        "lost_executors": parsed["lost_executors"], "lost_tasks": parsed["lost_tasks"],
+        "retried_tasks": parsed["retried_tasks"], "executors": parsed["executors"],
+        "stages": parsed["stages"], "summary": parsed["summary"],
+        "key_log_lines": _key_lines(log_text), "report_file": report.name, "log_file": local_log.name,
+    })
     ctx.reporter.log("-", f"demo report: {report}", "ok")
     if not same:
         raise WorkloadError("recovered result differs from baseline")
     return report
+
+
+KEY_LINE_PATTERNS = (
+    ("ERROR TaskSchedulerImpl: Lost executor", 2),
+    ("WARN TaskSetManager: Lost task", 2),
+    ("DAGScheduler: Executor lost", 2),
+    ("got disassociated", 2),
+    (re.compile(r"Starting task \d+\.1 in stage"), 3),
+    (re.compile(r"Finished task \d+\.1 in stage"), 2),
+    (re.compile(r"ShuffleMapStage 0 \(.*\) finished"), 1),
+    ("Job 0 finished", 1),
+    ("WORDCOUNT_DONE", 1),
+    ("total_words=", 1),
+)
+
+
+def _key_lines(log_text: str) -> list[str]:
+    """A short, ordered excerpt that tells the recovery story (for slides and the dashboard)."""
+    picked: list[tuple[int, str]] = []
+    lines = log_text.splitlines()
+    for pattern, limit in KEY_LINE_PATTERNS:
+        hits = [(i, ln) for i, ln in enumerate(lines)
+                if (pattern.search(ln) if isinstance(pattern, re.Pattern) else pattern in ln)]
+        picked.extend(hits[:limit])
+    return [ln.strip() for _, ln in sorted(set(picked))]
 
 
 def _demo_report(stamp: str, mode: str, victim: Host, partitions: int, delay_ms: int, tl: DemoTimeline,
