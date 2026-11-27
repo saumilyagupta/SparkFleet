@@ -26,6 +26,8 @@ cache/
 /results/
 *.tgz
 corpus*.txt
+# Ad-hoc screenshots taken while checking the dashboard
+_dash*.png
 
 # Python
 .venv/
