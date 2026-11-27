@@ -10,6 +10,11 @@ const CONFIRM = {
   stop: "Stop Spark services on the selected hosts?",
   restart: "Restart Spark services on the selected hosts?",
   demo_failure: "Run the failure demo? It deliberately kills a worker or executor.",
+  demo_failover: "Run the MASTER failover demo? It stops the active master with sudo, waits for ZooKeeper\n" +
+    "to elect the standby (~1-4 minutes), then restarts the old master as STANDBY.",
+  demo_scenario: "Run this fault scenario? It deliberately kills or throttles a worker mid-job.",
+  archive: "Copy results into docs/results/ (secret-scanned)? Files containing a password are refused.",
+  bench: "Run the scaling benchmark? Each cell is a fresh Spark application: the defaults take ~25 minutes.",
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -249,10 +254,33 @@ function actionParams(name) {
     Object.assign(params, { input: $("#p-input").value.trim(), mode: $("#p-mode").value, waves: num("#p-waves"), delay_ms: num("#p-delay") });
     if ($("#p-victim").value) params.victim = $("#p-victim").value;
   }
+  if (name === "demo_scenario") params.scenario = $("#p-scenario").value;
+  if (name === "demo_failover" && $("#p-input").value.trim()) params.input = $("#p-input").value.trim();
+  if (name === "bench") {
+    Object.assign(params, { sizes: $("#p-sizes").value.replace(/\s+/g, ""), repeats: num("#p-repeats") });
+    const max = $("#p-max-workers").value;
+    if (max) params.max_workers = Number(max);   // blank = use every ALIVE worker
+  }
   return params;
 }
 
+// Actions the server validates; check them here so a long confirm dialog is not shown for a typo.
+const NUMBER_FIELDS = { bench: ["#p-repeats", "#p-max-workers"] };
+
+function localInvalid(name) {
+  for (const sel of NUMBER_FIELDS[name] || []) {
+    const el = $(sel);
+    const raw = el.value.trim();
+    if (!raw) continue;   // blank is meaningful (max workers = all)
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < Number(el.min || 1)) return `${el.closest("label").textContent.trim()}: use a whole number >= ${el.min || 1}`;
+  }
+  return "";
+}
+
 async function runAction(name) {
+  const invalid = localInvalid(name);
+  if (invalid) { banner(`${name}: ${invalid}`); return; }
   const scope = LIMITABLE.has(name) && state.selected.size ? ` on ${[...state.selected].join(", ")}` : "";
   if (CONFIRM[name] && !confirm(CONFIRM[name] + (scope ? `\n(${scope.trim()})` : "\n(all hosts)"))) return;
   try {
@@ -286,7 +314,7 @@ function followJob(id, name) {
     state.source = null;
     setJobState(`${name} ${end.state}`, end.state === "done" ? "ok" : "down");
     if (end.state === "failed") banner(`${name} failed: ${end.error}`);
-    emit("job:end", { id, name, state: end.state });
+    emit("job:end", { id, name, state: end.state, error: end.error });
     refreshAll();
   });
   src.onerror = () => { if (src.readyState === EventSource.CLOSED) setJobState(`${name} ?`, "pending"); };
@@ -372,6 +400,7 @@ function wire() {
     catch (e) { banner(e.message); }
   });
   document.querySelectorAll("[data-action]").forEach((b) => b.addEventListener("click", () => runAction(b.dataset.action)));
+  $("#adv-ha").addEventListener("click", () => { $("#adv-ha-out").hidden = true; runAction("ha"); });
   setInterval(() => { if (document.visibilityState === "visible") refreshStatus(); }, STATUS_REFRESH_MS);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshStatus(); });
 }

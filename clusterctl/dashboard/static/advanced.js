@@ -57,7 +57,45 @@ async function refreshLoad() {
   }
 }
 
+// ------------------------------------------------------------------ HA summary line
+// The `ha` action runs as a job (it SSHes to every master). It is NOT polled: a background poll
+// would hold the one-job-at-a-time slot and could refuse the click the user actually made.
+// The line updates when the HA-status button runs the action and after failover/lifecycle jobs.
+const HA_JOBS = new Set(["ha", "demo_failover", "start", "stop", "restart", "up"]);
+
+function showHa(job, lines) {
+  const out = document.getElementById("adv-ha-out");
+  if (!out) return;
+  lines = lines || (job.history || []).map((e) => e.msg);
+  const masters = lines.filter((m) => m.startsWith("master "));
+  const zk = lines.filter((m) => m.startsWith("zookeeper "));
+  const head = (lines.find((m) => m.startsWith("master HA")) || "master HA").split(";")[0];
+  out.textContent = job.state === "done"
+    ? `${head} · ${[...masters, ...zk].map((m) => m.split(" ").slice(1).join(" ")).join(" · ") || "no master reported"}`
+    : `master HA status failed: ${job.error || job.state}`;
+  out.hidden = false;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   refreshLoad();
   setInterval(refreshLoad, LOAD_POLL_MS);
+  document.addEventListener("job:end", (e) => {
+    if (HA_JOBS.has(e.detail.name)) refreshHaJob(e.detail.id);
+  });
 });
+
+async function refreshHaJob(id) {
+  const out = document.getElementById("adv-ha-out");
+  try {
+    const job = await api("GET", `/api/jobs/${encodeURIComponent(id)}?since=0`);
+    const lines = (job.history || []).map((e) => e.msg);
+    if (!lines.some((m) => m.startsWith("master HA"))) {
+      // Lifecycle/failover jobs do not print HA status: ask for it in the same job slot, then show it.
+      const { job_id } = await api("POST", "/api/actions/ha", {});
+      return refreshHaJob(job_id);
+    }
+    showHa(job, lines);
+  } catch (err) {
+    if (out) { out.textContent = `HA status unavailable: ${err.message || err}`; out.hidden = false; }
+  }
+}

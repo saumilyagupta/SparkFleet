@@ -190,6 +190,27 @@
           </ul>
         </div>
         <div class="group">
+          <h3>advanced</h3>
+          <div class="fields">
+            <button class="btn btn-danger" data-action="demo_failover" type="button">Master failover demo</button>
+            <button id="adv-ha" class="btn btn-ghost" type="button">HA status</button>
+            <button id="adv-archive" class="btn btn-ghost" type="button">Archive results</button>
+          </div>
+          <div class="fields">
+            <label>scenario<select id="p-scenario">
+              <option>shuffle</option><option>straggler</option><option>cascade</option>
+            </select></label>
+            <button class="btn btn-danger" data-action="demo_scenario" type="button">Run scenario</button>
+          </div>
+          <div class="fields">
+            <label>sizes MB<input id="p-sizes" value="100,500,1000,2000" pattern="\d+(\s*,\s*\d+)*"></label>
+            <label>repeats<input id="p-repeats" type="number" min="1" max="5" value="3"></label>
+            <label>max workers<input id="p-max-workers" type="number" min="1" placeholder="all"></label>
+            <button class="btn" data-action="bench" type="button">Run benchmark</button>
+          </div>
+          <p class="hint" id="adv-ha-out" role="status" hidden></p>
+        </div>
+        <div class="group">
           <h3>workload</h3>
           <div class="fields">
             <label>local file (project dir)<input id="p-path" placeholder="data/sample.txt"></label>

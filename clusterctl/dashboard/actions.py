@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from clusterctl import bootstrap as boot
 from clusterctl import cluster_ops, provision, workload
@@ -54,6 +54,45 @@ class DemoParams(_Params):
 
 class ScenarioParams(_Params):
     scenario: Literal["shuffle", "straggler", "cascade"]
+
+
+class FailoverParams(_Params):
+    input: str = Field(default="corpus.txt", pattern=INPUT_NAME)
+
+
+# Guard rails for a browser button: the defaults (100/500/1000/2000 MB x 3 repeats) already take
+# about 25 minutes on the lab cluster, so the UI cannot ask for an all-day run by accident.
+BENCH_MAX_SIZES = 8
+BENCH_MAX_MB = 2000
+BENCH_MAX_REPEATS = 5
+
+
+def parse_sizes(raw: str) -> tuple[int, ...]:
+    """"100,500" -> (100, 500). Rejects empty/odd values and anything over BENCH_MAX_MB."""
+    parts = [p.strip() for p in raw.split(",")]
+    if not parts or any(not p.isdigit() for p in parts):
+        raise ValueError("sizes must be comma-separated whole MB values, e.g. 100,500,1000")
+    sizes = sorted({int(p) for p in parts})
+    if len(sizes) > BENCH_MAX_SIZES:
+        raise ValueError(f"at most {BENCH_MAX_SIZES} sizes per benchmark")
+    if sizes[0] < 1 or sizes[-1] > BENCH_MAX_MB:
+        raise ValueError(f"sizes must be between 1 and {BENCH_MAX_MB} MB")
+    return tuple(sizes)
+
+
+class BenchParams(_Params):
+    """Same knobs as `clusterctl bench`; sizes are normalized so the action sees a clean tuple."""
+    sizes: str = "100,500,1000,2000"
+    repeats: int = Field(default=3, ge=1, le=BENCH_MAX_REPEATS)
+    max_workers: int | None = Field(default=None, ge=1, le=1000)
+
+    @field_validator("sizes")
+    @classmethod
+    def _check_sizes(cls, value: str) -> str:
+        return ",".join(str(n) for n in parse_sizes(value))
+
+    def size_list(self) -> tuple[int, ...]:
+        return parse_sizes(self.sizes)
 
 
 @dataclass(frozen=True)
@@ -134,6 +173,57 @@ def do_demo_scenario(ctx: Context, p: ScenarioParams) -> None:
     run_scenario(ctx, p.scenario)
 
 
+def do_demo_failover(ctx: Context, p: FailoverParams) -> None:
+    """Kill the active master mid-job; ZooKeeper must elect the standby and the job must finish."""
+    from clusterctl.ha import demo_master_failover  # noqa: PLC0415 - import on use, like the CLI
+
+    d = demo_master_failover(ctx, p.input)
+    ctx.reporter.log("-", f"new master {d['new_master']['name']}; results identical={d['identical']}",
+                     "ok" if d["identical"] else "error")
+
+
+def do_ha(ctx: Context, _p: NoParams) -> None:
+    """Read-only: masters (ALIVE/STANDBY) and ZooKeeper modes, same output as `clusterctl ha`."""
+    from clusterctl.ha import master_states, zookeeper_status  # noqa: PLC0415
+
+    cfg = ctx.inventory.cluster
+    ctx.reporter.log("-", f"master HA: {'ENABLED' if cfg.ha_enabled else 'disabled'}; "
+                          f"master URL {ctx.inventory.spark_master_url}")
+    for m in master_states(ctx):
+        extra = f"workers={m['alive_workers']}" if "alive_workers" in m else m.get("error", "")
+        ctx.reporter.log(m["name"], f"master {m['ip']} {m['status']} {extra}")
+    for z in zookeeper_status(ctx):
+        ctx.reporter.log(z["name"], f"zookeeper {z['ip']} {z['mode']}")
+
+
+def do_bench(ctx: Context, p: BenchParams) -> None:
+    from clusterctl.bench import run_benchmark  # noqa: PLC0415 - import on use, like the CLI
+
+    report = run_benchmark(ctx, sizes_mb=p.size_list(), repeats=p.repeats, max_workers=p.max_workers)
+    for r in report["table"]:
+        ctx.reporter.log("-", f"{r['size_mb']} MB on {r['workers']} worker(s): {r['median_s']} s, "
+                              f"speedup {r['speedup']}, efficiency {r['efficiency']}, {r['throughput_mb_s']} MB/s")
+    ctx.reporter.log("-", f"correct vs single-machine reference: {report['correct_vs_reference']}",
+                     "ok" if all(report["correct_vs_reference"].values()) else "warn")
+
+
+def do_archive(ctx: Context, _p: NoParams) -> None:
+    """Secret-scan results/ into docs/results/ exactly like `clusterctl archive` (secrets from the vault)."""
+    from clusterctl.archive import archive  # noqa: PLC0415 - import on use, like the CLI
+
+    vault = ctx.vault
+    secrets = tuple(s for s in (vault.get(n) for n in vault.names()) if s) if vault else ()
+    result = archive(ctx.paths, secrets)
+    for name in result.copied:
+        ctx.reporter.log("-", f"copied docs/results/{name}", "ok")
+    for name in result.refused:
+        ctx.reporter.log("-", f"REFUSED {name}", "error")
+    ctx.reporter.log("-", f"{len(result.copied)} copied, {len(result.unchanged)} unchanged, "
+                          f"{len(result.refused)} refused")
+    if result.refused:
+        raise ActionFailed(f"{len(result.refused)} result file(s) refused by the secret scan")
+
+
 def do_evidence(ctx: Context, _p: NoParams) -> None:
     """Write results/evidence-<ts>.html (facts + latest runs) for the evaluator."""
     from clusterctl.evidence import generate_report  # noqa: PLC0415 - optional module, import on use
@@ -156,5 +246,10 @@ def default_actions() -> dict[str, Action]:
         "run_wordcount": Action(do_run_wordcount, RunParams),
         "demo_failure": Action(do_demo_failure, DemoParams, needs_vault=True),
         "demo_scenario": Action(do_demo_scenario, ScenarioParams, needs_vault=True),
+        # Kills a master with sudo, then restores it: the most disruptive action in the UI.
+        "demo_failover": Action(do_demo_failover, FailoverParams, needs_vault=True),
+        "ha": Action(do_ha),
+        "bench": Action(do_bench, BenchParams),
+        "archive": Action(do_archive),
         "evidence": Action(do_evidence),
     }
